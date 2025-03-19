@@ -1,0 +1,1 @@
+export { default as CreateMapPage } from './ui.vue';

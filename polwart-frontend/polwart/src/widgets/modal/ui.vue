@@ -34,6 +34,13 @@ import { Button } from '@/shared/button';
     background-color: white;
     padding: 32px;
     border-radius: 16px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    gap: 16px;
 }
 
 </style>
