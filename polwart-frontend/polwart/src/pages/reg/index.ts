@@ -1,0 +1,1 @@
+export { default as RegPage } from './ui.vue';

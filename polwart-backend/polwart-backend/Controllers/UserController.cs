@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using polwart_backend.Entities;
+using polwart_backend.Models;
 
 namespace polwart_backend.Controllers
 {

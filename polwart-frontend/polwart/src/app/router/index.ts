@@ -1,19 +1,20 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { Auth } from '@/pages/auth_page'
+import { AuthPage } from '@/pages/auth'
+import { RegPage } from '@/pages/reg'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
-        path: '/',
-        name: 'home',
-        component: Auth
+      path: '/auth',
+      name: "auth",
+      component: AuthPage
     },
     {
-        path: '/auth',
-        name: "auth",
-        component: Auth
-    },
+      path: '/reg',
+      name: 'reg',
+      component: RegPage
+    }
   ]
 })
 
