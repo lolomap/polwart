@@ -1,0 +1,62 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://github.com/lolomap/polwart/refs/heads/master/map.schema.json",
+	"type": "object",
+	"title": "Map document",
+	
+	"properties": {
+		"id": {"type": "number"},
+		
+		"layers": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				
+				"properties": {
+					"timestampISO": {"type": "string"},
+					"content": {
+						"type": "array",
+						"title": "symbol",
+						
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {"type": "number"},
+								"type": {"type": "number"},
+								"title": {"type": "string"},
+								"value": {}
+							}
+						}
+					}
+				}
+			}
+		},
+		
+		"legend": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"title": "symbolType",
+				"properties": {
+					"id": {"type": "number"},
+					"name": {"type": "string"},
+					"properties": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"title": "symbolProperty",
+							
+							"properties": {
+								"name": {"type": "string"},
+								"type": {"enum": ["integer", "float", "string", "boolean"]},
+								"isEditable": {"type": "boolean"},
+								"isCombo": {"type": "boolean"},
+								"comboValues": {"type": "array", "items": {}}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}

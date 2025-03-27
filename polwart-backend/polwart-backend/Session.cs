@@ -19,7 +19,7 @@ public class Session(int mapId, string root)
 		if (data == null) return;
 
 		Revision revision = new(this, data, request.Timestamp);
-		_revisions.Add(request.Timestamp, revision);
+		_revisions.TryAdd(request.Timestamp, revision);
 	}
 
 	public IEnumerable<Revision> GetRevisions(long sinceTimestamp)
@@ -39,11 +39,13 @@ public class Session(int mapId, string root)
 
 	public string CombineRevisions()
 	{
-		JsonNode document = _rootDocument.DeepClone();
+		JsonNode? document = _rootDocument.DeepClone();
 		
 		for (int i = 0; i < _revisions.Count; i++)
 		{
-			_revisions[i].PatchData.Apply(document);
+			PatchResult patch = _revisions[i].PatchData.Apply(document);
+			if (patch.IsSuccess)
+				document = patch.Result;
 		}
 
 		return JsonSerializer.Serialize(document);

@@ -1,0 +1,20 @@
+[
+	{
+		"op": "add",
+		"path": "/legend/0",
+		"value": {
+			"id": 0,
+			"type": "float"
+		}
+	},
+	{
+		"op": "add",
+		"path": "/layers/0/content/0",
+		"value": {
+			"id": 0,
+			"type": 0,
+			"title": "test",
+			"value": 123.4
+		}
+	}
+]
