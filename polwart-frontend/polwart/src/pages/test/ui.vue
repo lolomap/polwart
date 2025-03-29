@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import type { SymbolType } from '@/entities/Map/Legend/symbol-type';
 import { useSessionStore } from '@/entities/store';
-import * as map from '@/entities/Map/map';
-import { type Map } from '@/entities/Map/map';
+import * as signalr from '@/features/signalr';
 
 const session = useSessionStore();
 
+signalr.Init();
+
+// TODO: move functions to separate API file
 const connect = () => {
+    let status: number;
+
     fetch('https://localhost:7238/map/connect', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -15,6 +18,16 @@ const connect = () => {
                 'mapId': 123
             }
         )
+    })
+    .then(response => {
+        status = response.status;
+        return response.json();
+    })
+    .then((data) => {
+        session.mapData = data.root;
+        console.log(session.mapData);
+
+        signalr.Subscribe(123);
     });
 };
 
@@ -52,7 +65,10 @@ let patch = () => {
         )
     })
     .then(response => response.json())
-    .then(data => console.log(data));
+    .then(data => {
+        console.log(data);
+        signalr.Notify();
+    });
 };
 
 </script>

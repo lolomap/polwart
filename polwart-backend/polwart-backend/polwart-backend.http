@@ -1,6 +1,11 @@
 @polwart_backend_HostAddress = http://localhost:5019
 
-GET {{polwart_backend_HostAddress}}/weatherforecast/
+POST {{polwart_backend_HostAddress}}/map/connect
+Accept: application/json
+
+###
+
+PATCH {{polwart_backend_HostAddress}}/map/patch
 Accept: application/json
 
 ###

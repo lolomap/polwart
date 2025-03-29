@@ -6,12 +6,16 @@ public class NotificationHub : Hub
 {
 	public void Subscribe(int mapId)
 	{
+		Console.WriteLine("Subscribe signal");
+		
 		if (!G.SessionsController.ConnectNotifications(Context.ConnectionId, Clients.Caller, mapId))
 			Clients.Caller.SendAsync("SubscribtionFailed");
 	}
 	
 	public Task NotifyChanges()
 	{
+		Console.WriteLine("Notify signal");
+		
 		Session? session = G.SessionsController.GetClientSession(Context.ConnectionId);
 		if (session == null)
 		{
