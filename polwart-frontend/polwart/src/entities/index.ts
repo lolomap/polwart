@@ -1,1 +1,1 @@
-export { useEntityStore } from './store'
+export { usePersistentStore as useEntityStore } from './store'

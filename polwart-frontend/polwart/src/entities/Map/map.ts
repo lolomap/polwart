@@ -5,3 +5,8 @@ export type Map = {
     layers: Layer[];
     legend: SymbolType[];
 };
+
+// It will return jsonPatch
+export function AddSymbolType (map: Map, stype: SymbolType): void {
+    map.legend.push(stype);
+}

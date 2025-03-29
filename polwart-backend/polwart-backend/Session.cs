@@ -40,10 +40,10 @@ public class Session(int mapId, string root)
 	public string CombineRevisions()
 	{
 		JsonNode? document = _rootDocument.DeepClone();
-		
-		for (int i = 0; i < _revisions.Count; i++)
+
+		foreach (Revision revision in _revisions.Values)
 		{
-			PatchResult patch = _revisions[i].PatchData.Apply(document);
+			PatchResult patch = revision.PatchData.Apply(document);
 			if (patch.IsSuccess)
 				document = patch.Result;
 		}
