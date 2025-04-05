@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using System.Net;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.SignalR;
 using polwart_backend.Requests;
 
 namespace polwart_backend;
@@ -27,15 +29,19 @@ public class SessionsController
 	}
 
 	// TODO: Methods should return object with result, error and session
-	public bool ConnectNotifications(string connectionId, ISingleClientProxy connection, int mapId)
+	public bool ConnectNotifications(HubCallerContext context, ISingleClientProxy connection, int mapId)
 	{
 		if (!_sessionsPerMap.TryGetValue(mapId, out Session? session))
 			return false; //TODO: Response error (missing session)
 
-		if (!_sessionsPerConnections.TryAdd(connectionId, session))
+		if (!_sessionsPerConnections.TryAdd(context.ConnectionId, session))
 			return false; //TODO: Response error (only one map at the moment for connection)
-		
-		session.RegisterClient(connection);
+
+		IHttpConnectionFeature? httpConnection = context.Features.Get<IHttpConnectionFeature>();
+		if (httpConnection?.RemoteIpAddress == null)
+			return false; //TODO: Response error (could not recognize client endpoint)
+
+		session.RegisterClient(new(httpConnection.RemoteIpAddress, httpConnection.RemotePort), connection);
 
 		return true;
 	}

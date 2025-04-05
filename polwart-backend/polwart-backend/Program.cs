@@ -11,14 +11,17 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSignalR();
 
-const string allowSpecificOrigins = "AllowSpecificOrigins";
 builder.Services.AddCors(options =>
 {
-	options.AddPolicy(name: allowSpecificOrigins,
+	options.AddDefaultPolicy(
 		policy  =>
 		{
-			policy.WithOrigins("http://example.com",
-				"http://www.contoso.com");
+			policy
+				.AllowAnyOrigin()
+				.AllowAnyHeader()
+				.AllowAnyMethod()
+				.AllowCredentials()
+				.WithOrigins("http://localhost:5173");
 		});
 });
 
@@ -32,9 +35,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseCors(allowSpecificOrigins);
+app.UseCors();
 
 app.MapHub<NotificationHub>("/notification");
+
+//TODO: make requests async
 
 app.MapPost("/map/connect", (ConnectRequest request) =>
 	{
@@ -43,7 +48,12 @@ app.MapPost("/map/connect", (ConnectRequest request) =>
 
 		IEnumerable<Revision> revisions = G.SessionsController.Connect(request, json);
 
-		return Results.Json(new {Root = JsonSerializer.Deserialize<Dictionary<string, object>>(json), Revisions = revisions},
+		return Results.Json(
+			new
+			{
+				Root = JsonSerializer.Deserialize<Dictionary<string, object>>(json),
+				Revisions = revisions.Select(x => JsonSerializer.Serialize(x.PatchData))
+			},
 			contentType: "application/json", statusCode: 200);
 	})
 	.WithName("ConnectMap")
@@ -64,6 +74,17 @@ app.MapPatch("/map/patch", (PatchRequest request) =>
 		#endif
 	})
 	.WithName("PatchMap")
+	.WithOpenApi();
+
+app.MapPost("/map/update", (UpdateRequest request) =>
+	{
+		Session? session = G.SessionsController.GetMapSession(request.MapId);
+		return session == null
+			? Results.NotFound()
+			: Results.Json(session.GetRevisions(request.SinceTimestamp)
+				.Select(x => JsonSerializer.Serialize(x.PatchData)));
+	})
+	.WithName("UpdateMap")
 	.WithOpenApi();
 
 app.Run();

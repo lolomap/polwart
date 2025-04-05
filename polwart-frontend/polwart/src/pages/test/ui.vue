@@ -1,75 +1,36 @@
 <script setup lang="ts">
-import { useSessionStore } from '@/entities/store';
 import * as signalr from '@/features/signalr';
-
-const session = useSessionStore();
+import * as api from '@/features/api';
 
 signalr.Init();
 
-// TODO: move functions to separate API file
-const connect = () => {
-    let status: number;
-
-    fetch('https://localhost:7238/map/connect', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(
-            {
-                'mapId': 123
-            }
-        )
-    })
-    .then(response => {
-        status = response.status;
-        return response.json();
-    })
-    .then((data) => {
-        session.mapData = data.root;
-        console.log(session.mapData);
-
-        signalr.Subscribe(123);
-    });
-};
-
+let connect = () => {api.Connect(123);}
 let patch = () => {
-    fetch('https://localhost:7238/map/patch', {
-        method: 'PATCH',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(
-            {
-                'mapId': 123,
-                'timestamp': (new Date()).getTime(),
-                'patch': JSON.stringify(
-                    [
-                        {
-                            "op": "add",
-                            "path": "/legend/0",
-                            "value": {
-                                "id": 0,
-                                "type": "float"
-                            }
-                        },
-                        {
-                            "op": "add",
-                            "path": "/layers/0/content/0",
-                            "value": {
-                                "id": 0,
-                                "type": 0,
-                                "title": "test",
-                                "value": 123.4
-                            }
-                        }
-                    ]
-                )
-            }
+    api.Patch(
+        JSON.stringify(
+            [
+                {
+                    op: "add",
+                    "path": "/legend/0",
+                    "value": {
+                        "id": 0,
+                        "type": "float"
+                    }
+                },
+                {
+                    "op": "add",
+                    "path": "/layers/0/content/0",
+                    "value": {
+                        "id": 0,
+                        "type": 0,
+                        "title": "test",
+                        "value": 123.4
+                    }
+                }
+            ]
         )
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log(data);
-        signalr.Notify();
-    });
-};
+    );
+}
 
 </script>
 

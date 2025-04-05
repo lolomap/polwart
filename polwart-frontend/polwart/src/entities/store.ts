@@ -12,7 +12,7 @@ export const useSessionStore = defineStore('session', {
     },
 
     actions: {
-        patch(patchData: jsonpatch.JSONPatch[]) {
+        patch(patchData: string) {
             this.mapData = jsonpatch.apply_patch(this.mapData, patchData);
         }
     }

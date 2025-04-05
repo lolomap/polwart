@@ -1,4 +1,5 @@
 import { HubConnectionBuilder } from "@microsoft/signalr";
+import * as api from '@/features/api';
 
 
 const signalr = new HubConnectionBuilder()
@@ -9,7 +10,9 @@ let isReady: boolean;
 let isSubscribed: boolean;
 
 export function OnLostConnection() {
+    console.warn('DISCONNECTED FROM SIGNALR SERVER');
     isSubscribed = false;
+    isReady = false;
 }
 
 export function Init() {
@@ -20,8 +23,10 @@ export function Init() {
 
     signalr.start()
     .then(() => {
-        signalr.on('RevisionsUpdate', (data) => {console.log('Notification')});
-        signalr.on('SubscribtionFailed', (data) => {console.log(data)});
+        signalr.on('RevisionsUpdate', (data) => {
+            api.Update();
+        });
+        signalr.on('SubscribtionFailed', (data) => {console.error(data)});
         
         isReady = true;
     });
