@@ -1,5 +1,4 @@
 ﻿using System.Net;
-using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.SignalR;
 using polwart_backend.Requests;
 
@@ -13,7 +12,11 @@ public class SessionsController
 	private Session CreateSession(ConnectRequest request, string mapData)
 	{
 		Session session = new(request.MapId, mapData);
+		session.Close += CloseSession;
 		_sessionsPerMap.Add(request.MapId, session);
+		
+		//TODO: use logging utilities
+		Console.WriteLine($"OPEN SESSION FOR {request.MapId}");
 
 		return session;
 	}
@@ -29,21 +32,22 @@ public class SessionsController
 	}
 
 	// TODO: Methods should return object with result, error and session
-	public bool ConnectNotifications(HubCallerContext context, ISingleClientProxy connection, int mapId)
+	public bool ConnectNotifications(string connectionId, ISingleClientProxy connection, int mapId)
 	{
 		if (!_sessionsPerMap.TryGetValue(mapId, out Session? session))
 			return false; //TODO: Response error (missing session)
 
-		if (!_sessionsPerConnections.TryAdd(context.ConnectionId, session))
+		if (!_sessionsPerConnections.TryAdd(connectionId, session))
 			return false; //TODO: Response error (only one map at the moment for connection)
 
-		IHttpConnectionFeature? httpConnection = context.Features.Get<IHttpConnectionFeature>();
-		if (httpConnection?.RemoteIpAddress == null)
-			return false; //TODO: Response error (could not recognize client endpoint)
-
-		session.RegisterClient(new(httpConnection.RemoteIpAddress, httpConnection.RemotePort), connection);
+		session.RegisterClient(connectionId, connection);
 
 		return true;
+	}
+
+	public void DisconnectNotifications(string connectionId)
+	{
+		_sessionsPerConnections.Remove(connectionId);
 	}
 
 	public bool Patch(PatchRequest request)
@@ -65,9 +69,17 @@ public class SessionsController
 	{
 		return _sessionsPerMap.GetValueOrDefault(mapId);
 	}
-	
-	public void CloseSession(int id)
+
+	private void CloseSession(Session session)
 	{
-		_sessionsPerMap.Remove(id);
+		//TODO: save changed data to database
+		
+		_sessionsPerMap.Remove(session.MapId);
+		foreach (string connectionId in session.GetClientsEndpoints())
+		{
+			_sessionsPerConnections.Remove(connectionId);
+		}
+		
+		Console.WriteLine($"CLOSE SESSION FOR {session.MapId}");
 	}
 }

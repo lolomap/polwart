@@ -9,11 +9,12 @@ namespace polwart_backend;
 
 public class Session(int mapId, string root)
 {
-	private int _mapId = mapId;
-	// Clients connections assotiated with endpoints for proper reconnection behaviour
-	private readonly Dictionary<IPEndPoint, ISingleClientProxy> _clients = [];
+	public readonly int MapId = mapId;
+	private readonly Dictionary<string, ISingleClientProxy> _clients = [];
 	private readonly JsonNode _rootDocument = JsonNode.Parse(root)!;
 	private readonly SortedList<long, Revision> _revisions = [];
+	
+	public event Action<Session>? Close;
 
 	public void Patch(PatchRequest request)
 	{
@@ -29,14 +30,29 @@ public class Session(int mapId, string root)
 		return _revisions.Values.Where(x => x.Timestamp >= sinceTimestamp);
 	}
 
-	public void RegisterClient(IPEndPoint endpoint, ISingleClientProxy client)
+	public void RegisterClient(string connectionId, ISingleClientProxy client)
 	{
-		_clients[endpoint] = client;
+		_clients[connectionId] = client;
 	}
 
-	public IEnumerable<ISingleClientProxy> GetClients()
+	public void DisposeClient(string connectionId)
+	{
+		if (!_clients.ContainsKey(connectionId)) return;
+
+		_clients.Remove(connectionId);
+		
+		if (_clients.Count <= 0)
+			Close?.Invoke(this);
+	}
+
+	public IEnumerable<ISingleClientProxy> GetClientsConnections()
 	{
 		return _clients.Values;
+	}
+
+	public IEnumerable<string> GetClientsEndpoints()
+	{
+		return _clients.Keys;
 	}
 
 	public string CombineRevisions()
