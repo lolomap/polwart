@@ -3,5 +3,5 @@ export type Symbol = {
     type: number;
     title: string;
 
-    value: object;
+    value: any;
 };
