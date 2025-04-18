@@ -12,6 +12,7 @@ import { Button } from '@/shared/button';
 import { Modal } from '@/widgets/modal';
 import { Field } from '@/shared/field';
 import { Checkbox } from '@/shared/checkbox';
+import { UseMouse } from '@vueuse/components';
 
 const isOpenStypeEditor = ref(false);
 const currentSType = ref<SymbolType>({
@@ -28,6 +29,7 @@ const currentSymbol = ref<Symbol>({
     value: undefined
 });
 const doesExists = ref(false);
+const isOpenTooltip = ref(false);
 
 const graphRef = ref<RelationGraphComponent | null>(null);
 
@@ -119,12 +121,22 @@ async function GraphAddNode(symbol: Symbol) {
         const node: JsonNode[] = [
             {
                 id: symbol.id.toString(),
-                text: symbol.title,
-                width: 15,
-                height: 15
+                //text: symbol.title,
+                width: 20,
+                height: 20
             }
-        ]
+        ];
         await graphInstance.addNodes(node);
+
+        // Bind hower tooltip to node
+        const htmlElement = document.querySelector(`[data-id="${symbol.id}"]`);
+        htmlElement?.addEventListener('mouseover', (event) => {
+            currentSymbol.value = symbol;
+            isOpenTooltip.value = true;
+        });
+        htmlElement?.addEventListener('mouseout', (event) => {
+            isOpenTooltip.value = false;
+        });
     }
 }
 
@@ -170,7 +182,7 @@ function CreateSymbol(stype: SymbolType) {
         initValue.set(property.name, v);
     });
 
-    const symbol: Symbol = {id: Date.now(), type: stype.id, title: '', value: initValue};
+    const symbol: Symbol = {id: Date.now(), type: stype.id, title: `${Math.random()}`, value: initValue};
     AddSymbol(session.mapData, 0, symbol);
     GraphAddNode(symbol);
 }
@@ -270,7 +282,7 @@ function CreateSymbol(stype: SymbolType) {
                     :value="currentSymbol?.title"
                     :onChange ="(text: string) => {currentSymbol.title = text;}"
                 />
-                <Typography tag="h4" v-if="isReadSymbolEditor">Название элемента</Typography>
+                <Typography tag="h4" v-if="isReadSymbolEditor">{{ currentSymbol.title }}</Typography>
 
                 <div class="editor-property-right">
                     <Button
@@ -282,7 +294,7 @@ function CreateSymbol(stype: SymbolType) {
             </div>
 
             <div class="symbol-editor-properties-list">
-                <div class="symbol-editor-property-row" v-for="property in currentSymbol?.value.entries()">
+                <div class="symbol-editor-property-row" v-for="property in currentSymbol?.value?.entries()">
                     <Typography tag="p">{{ property[0] }}:</Typography>
 
                     <Typography tag="p" v-if="isReadSymbolEditor">{{ property[1] }}</Typography>
@@ -305,6 +317,23 @@ function CreateSymbol(stype: SymbolType) {
             </Button>
         </div>
     </Modal>
+
+    <UseMouse v-slot="{ x, y }">
+        <div v-if="isOpenTooltip" class="node-tooltip"
+            :style="{top: (y + 10) + 'px', left: (x + 10) + 'px'}"
+        >
+            <div class="symbol-tooltip-header">
+                <Typography tag="h4">{{ currentSymbol.title }}</Typography>
+            </div>
+
+            <div class="symbol-tooltip-properties-list">
+                <div class="symbol-tooltip-property-row" v-for="property in currentSymbol?.value?.entries()">
+                    <Typography tag="p">{{ property[0] }}:</Typography>
+                    <Typography tag="p">{{ property[1] }}</Typography>
+                </div>
+            </div>
+        </div>
+    </UseMouse>
 
     <div class="legend-block">
         <Typography tag="h4"><u>Легенда</u></Typography>
@@ -358,17 +387,33 @@ function CreateSymbol(stype: SymbolType) {
 </template>
 
 <style scoped>
-.modal-stype-editor {
+.modal-stype-editor, .modal-symbol-editor, .node-tooltip {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 8px;
 }
 
+.node-tooltip {
+    position: absolute;
+    z-index: 10;
+    border: solid black 2px;
+    background-color: white;
+}
+
 .stype-editor-properties-list, .symbol-editor-properties-list {
     width: 600px;
     height: 500px;
 
+    display: flex;
+    flex-direction: column;
+    
+    gap: 8px;
+
+    overflow-y: auto;
+}
+
+.symbol-tooltip-properties-list {
     display: flex;
     flex-direction: column;
     
@@ -412,7 +457,7 @@ function CreateSymbol(stype: SymbolType) {
 }
 
 .stype-editor-header, .symbol-editor-header, .legend-stype-row, .stype-editor-property-row,
-.symbol-editor-property-row {
+.symbol-editor-property-row, .symbol-tooltip-property-row, .symbol-tooltip-header {
     display: flex;
     flex-direction: row;
 
