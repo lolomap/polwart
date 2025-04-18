@@ -1,12 +1,20 @@
 <script setup lang="ts">
-import { Field } from '@/shared/field';
-import { StackPanel } from '@/shared/stack-panel';
-import { Button } from '@/shared/button';
+import { computed } from 'vue';
 
+interface Props {
+    isOpen?: boolean;
+}
+
+const props = defineProps<Props>();
+const { 
+    isOpen = false
+} = props;
+
+const rIsOpen = computed(() => props.isOpen);
 </script>
 
 <template>
-    <div class="modal">
+    <div :class="[`modal_${rIsOpen ? 'open' : 'closed'}`]">
         <div class="modal-inner">
             <slot></slot>
         </div>
@@ -15,7 +23,11 @@ import { Button } from '@/shared/button';
 
 <style scoped>
 
-.modal {
+.modal_closed {
+    display: none;
+}
+
+.modal_open {
     position: fixed;
     top: 0;
     left: 0;
@@ -23,11 +35,12 @@ import { Button } from '@/shared/button';
     bottom: 0;
     z-index: 99;
 
-    background-color: rgba(0, 0, 0, 0.2);
-
     display: flex;
     align-items: center;
     justify-content: center;
+
+    background-color: rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(3px);
 }
 
 .modal-inner {

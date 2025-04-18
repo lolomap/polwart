@@ -7,7 +7,9 @@ const url = 'https://localhost:7238';
 let MapId: number = -1;
 let LastUpdateTimestamp = 0;
 
-export function Connect(mapId: number) {
+export async function Connect(mapId: number) {
+    await signalr.Init();
+
     session = useSessionStore();
     MapId = mapId;
     let status: number;

@@ -15,18 +15,21 @@ export function OnLostConnection() {
     isReady = false;
 }
 
-export function Init() {
+export async function Init() {
     if (isReady) {
         console.warn('Multiply signalR init attemptions');
         return;
     }
 
-    signalr.start()
+    await signalr.start()
     .then(() => {
         signalr.on('RevisionsUpdate', (data) => {
             api.Update();
         });
-        signalr.on('SubscribtionFailed', (data) => {console.error(data)});
+        signalr.on('SubscribtionFailed', (data) => {
+            console.error('Subscription failed:');
+            console.error(data);
+        });
         
         isReady = true;
     });

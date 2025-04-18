@@ -1,8 +1,9 @@
 <script lang="ts" setup>
+import { computed } from 'vue';
 import { Typography } from '../typography';
 
 interface Props {
-    onChange?: (value: string) => void;
+    onChange?: (value: boolean) => void;
     title?: string;
     isMirrored?: boolean;
     disabled?: boolean;
@@ -19,6 +20,8 @@ const {
     value = false,
     onChange = () => {},
 } = props;
+
+const rVal = computed(() => props.value);
 </script>
 
 <template>
@@ -27,12 +30,12 @@ const {
 
         <div class="checkbox__container">
             <input 
-                @input="(input) => {if(input.target) onChange((input.target as HTMLInputElement).value)}"
+                @input="(input) => {if(input.target) onChange((input.target as HTMLInputElement).checked)}"
                 class="checkbox__input" 
                 :placeholder="placeholder" 
                 type="checkbox" 
                 :disabled="disabled"
-                :value="value"
+                :checked="rVal"
             />
         </div>
 
@@ -66,7 +69,7 @@ const {
 
 .checkbox {
     display: flex;
-    gap: 32px;
+    gap: 16px;
 }
 
 .checkbox__container {

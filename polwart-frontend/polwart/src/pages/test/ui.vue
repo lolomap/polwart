@@ -1,8 +1,5 @@
 <script setup lang="ts">
-import * as signalr from '@/features/signalr';
 import * as api from '@/features/api';
-
-signalr.Init();
 
 let connect = () => {api.Connect(123);}
 let patch = () => {
