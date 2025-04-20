@@ -7,6 +7,7 @@ export type Map = {
     legend: SymbolType[];
 };
 
+//TODO: move it to features
 // All functions should return jsonPatch
 
 export function AddSymbolType(map: Map, stype: SymbolType): void {

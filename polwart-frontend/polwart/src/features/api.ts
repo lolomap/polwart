@@ -2,10 +2,21 @@ import { useSessionStore } from '@/entities/store';
 import * as signalr from '@/features/signalr';
 
 let session: any;
-const url = 'https://localhost:7238';
+
+//TODO: URLS in environment or config file
+
+const backendUrl = 'https://localhost:7238';
+const mediaUrl = 'http://192.168.1.162:8081/media';
 
 let MapId: number = -1;
 let LastUpdateTimestamp = 0;
+
+export async function MediaUpload(fileName: string, file: File) {
+    fetch(mediaUrl + `/${fileName}`, {
+        method: 'PUT',
+        body: file
+    });
+}
 
 export async function Connect(mapId: number) {
     await signalr.Init();
@@ -14,7 +25,7 @@ export async function Connect(mapId: number) {
     MapId = mapId;
     let status: number;
 
-    fetch(url + '/map/connect', {
+    fetch(backendUrl + '/map/connect', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(
@@ -47,7 +58,7 @@ export function Patch(patches: string) {
         return;
     }
 
-    fetch(url + '/map/patch', {
+    fetch(backendUrl + '/map/patch', {
         method: 'PATCH',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(
@@ -71,7 +82,7 @@ export function Update() {
         return;
     }
 
-    fetch(url + '/map/update', {
+    fetch(backendUrl + '/map/update', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(

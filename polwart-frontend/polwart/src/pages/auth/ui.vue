@@ -7,7 +7,7 @@ import { Typography } from '@/shared/typography';
 </script>
 
 <template>
-    <Modal>
+    <Modal :isOpen="true">
         <StackPanel>
             <Field placeholder='Логин' />
             <Field placeholder='Пароль'
