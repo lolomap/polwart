@@ -29,7 +29,7 @@ const router = createRouter({
       component: TestPage
     },
     {
-      path: '/edit',
+      path: '/edit/:mapId',
       name: 'edit',
       component: EditPage
     }

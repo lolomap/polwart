@@ -46,7 +46,7 @@ export async function Connect(mapId: number) {
             session.patch(revision);
         });
 
-        console.log(session.mapData);
+        //console.log(session.mapData);
 
         signalr.Subscribe(MapId);
     });
@@ -100,7 +100,7 @@ export function Update() {
             return;
         }
 
-        console.log(data);
+        //console.log(data);
 
         data.forEach((revision: string) => {
             session.patch(revision);

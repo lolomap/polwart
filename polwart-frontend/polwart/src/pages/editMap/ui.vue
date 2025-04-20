@@ -5,14 +5,15 @@ import { RelationGraphComponent, type RGOptions } from 'relation-graph-vue3';
 import { Typography } from '@/shared/typography';
 import { useSessionStore } from '@/entities/store';
 import type { Symbol } from '@/entities/Map/Legend/symbol';
-import { AddSymbol, AddSymbolType, GetSymbol, GetSymbolType, UpdateSymbolType } from '@/entities/Map/map';
 import * as api from '@/features/api';
+import * as map from '@/features/map';
 import type { SymbolType } from '@/entities/Map/Legend/symbol-type';
 import { Button } from '@/shared/button';
 import { Modal } from '@/widgets/modal';
 import { Field } from '@/shared/field';
 import { Checkbox } from '@/shared/checkbox';
 import { UseMouse } from '@vueuse/components';
+import { useRoute } from 'vue-router';
 
 const isOpenStypeEditor = ref(false);
 const currentSType = ref<SymbolType>({
@@ -44,12 +45,18 @@ const graphOptions: RGOptions = {
     defaultLineColor: 'rgba(15, 71, 255)'
 }
 
-//TODO: route mapId to address
-//api.Connect(123);
+const route = useRoute();
+let mapId: number = -1;
+if (Array.isArray(route.params.mapId))
+    mapId = parseInt(route.params.mapId[0]);
+else mapId = parseInt(route.params.mapId);
+
+if (mapId > -1)
+    api.Connect(mapId);
 const session = useSessionStore();
 
 // For testing without backend
-///*
+/*
 session.mapData = {
     layers: [
         {content: [], timestampISO: ''}
@@ -105,9 +112,9 @@ async function ShowGraph() {
 }
 
 function GraphClickNode(node: RGNode, event: RGUserEvent) {
-    const symbol = GetSymbol(session.mapData!, 0, Number(node.id));
+    const symbol = map.GetSymbol(session.mapData!, 0, Number(node.id));
     if (!symbol) return;
-    const symbolType = GetSymbolType(session.mapData!, symbol.type);
+    const symbolType = map.GetSymbolType(session.mapData!, symbol.type);
     if (!symbolType) return;
 
     currentSymbol.value = symbol;
@@ -146,7 +153,8 @@ function RequestCreateSType(stype: SymbolType) {
         return;
     }
 
-    AddSymbolType(session.mapData, stype);
+    const patch = map.AddSymbolType(session.mapData, stype);
+    api.Patch(patch);
 }
 function RequestUpdateSType(stype: SymbolType) {
     if (!session.mapData) {
@@ -154,7 +162,8 @@ function RequestUpdateSType(stype: SymbolType) {
         return;
     }
 
-    UpdateSymbolType(session.mapData, stype);
+    const patch = map.UpdateSymbolType(session.mapData, stype);
+    api.Patch(patch);
 }
 
 function CreateSymbol(stype: SymbolType) {
@@ -182,9 +191,11 @@ function CreateSymbol(stype: SymbolType) {
         initValue.set(property.name, v);
     });
 
-    const symbol: Symbol = {id: Date.now(), type: stype.id, title: `${Math.random()}`, value: initValue};
-    AddSymbol(session.mapData, 0, symbol);
+    const symbol: Symbol = {id: Date.now(), type: stype.id, title: `${Date.now()}`, value: initValue};
+    const patch = map.AddSymbol(session.mapData, 0, symbol);
     GraphAddNode(symbol);
+    console.log(patch);
+    api.Patch(patch);
 }
 
 </script>
