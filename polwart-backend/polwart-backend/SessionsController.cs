@@ -1,5 +1,7 @@
 ﻿using System.Net;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using polwart_backend.Entities;
 using polwart_backend.Requests;
 
 namespace polwart_backend;
@@ -70,9 +72,15 @@ public class SessionsController
 		return _sessionsPerMap.GetValueOrDefault(mapId);
 	}
 
-	private void CloseSession(Session session)
+	private async void CloseSession(Session session)
 	{
-		//TODO: save changed data to database
+		await using ApplicationContext db = new();
+		
+		string updatedRoot = session.CombineRevisions();
+		Map? map = await db.Maps.FirstOrDefaultAsync(x => x.Id == session.MapId);
+		if (map == null) return;
+		map.Content = updatedRoot;
+		await db.SaveChangesAsync();
 		
 		_sessionsPerMap.Remove(session.MapId);
 		foreach (string connectionId in session.GetClientsEndpoints())
