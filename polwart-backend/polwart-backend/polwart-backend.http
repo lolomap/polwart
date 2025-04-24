@@ -9,3 +9,13 @@ PATCH {{polwart_backend_HostAddress}}/map/patch
 Accept: application/json
 
 ###
+
+POST {{polwart_backend_HostAddress}}/map/update
+Accept: application/json
+
+###
+
+POST {{polwart_backend_HostAddress}}/map/create
+Accept: application/json
+
+###

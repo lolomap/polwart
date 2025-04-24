@@ -72,15 +72,15 @@ public class SessionsController
 		return _sessionsPerMap.GetValueOrDefault(mapId);
 	}
 
-	private async void CloseSession(Session session)
+	private void CloseSession(Session session)
 	{
-		await using ApplicationContext db = new();
+		using ApplicationContext db = new();
 		
 		string updatedRoot = session.CombineRevisions();
-		Map? map = await db.Maps.FirstOrDefaultAsync(x => x.Id == session.MapId);
+		Map? map = db.Maps.FirstOrDefault(x => x.Id == session.MapId);
 		if (map == null) return;
 		map.Content = updatedRoot;
-		await db.SaveChangesAsync();
+		db.SaveChanges();
 		
 		_sessionsPerMap.Remove(session.MapId);
 		foreach (string connectionId in session.GetClientsEndpoints())
