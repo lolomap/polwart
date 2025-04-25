@@ -42,24 +42,17 @@ app.UseCors();
 
 app.MapHub<NotificationHub>("/notification");
 
-//TODO: make requests async
-
 app.MapPost("/map/connect", async (ConnectRequest request) =>
 	{
-		await using ApplicationContext db = new();
-
-		Map? map = await db.Maps.FirstOrDefaultAsync(x => x.Id == request.MapId);
-		if (map == null)
+		Session? session = await G.SessionsController.Connect(request);
+		if (session == null)
 			return Results.NotFound();
-		string json = map.Content;
-
-		IEnumerable<Revision> revisions = G.SessionsController.Connect(request, json);
 
 		return Results.Json(
 			new
 			{
-				Root = JsonSerializer.Deserialize<Dictionary<string, object>>(json),
-				Revisions = revisions.Select(x => JsonSerializer.Serialize(x.PatchData))
+				Root = JsonSerializer.Deserialize<Dictionary<string, object>>(session.RootJson),
+				Revisions = session.GetRevisions(0).Select(x => JsonSerializer.Serialize(x.PatchData))
 			},
 			contentType: "application/json", statusCode: 200);
 	})

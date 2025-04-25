@@ -10,6 +10,8 @@ namespace polwart_backend;
 public class Session(int mapId, string root)
 {
 	public readonly int MapId = mapId;
+	public readonly string RootJson = root;
+	
 	private readonly Dictionary<string, ISingleClientProxy> _clients = [];
 	private readonly JsonNode _rootDocument = JsonNode.Parse(root)!;
 	private readonly SortedList<long, Revision> _revisions = [];

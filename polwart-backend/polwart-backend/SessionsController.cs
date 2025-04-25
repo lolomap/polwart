@@ -23,14 +23,20 @@ public class SessionsController
 		return session;
 	}
 
-	public IEnumerable<Revision> Connect(ConnectRequest request, string mapData)
+	public async Task<Session?> Connect(ConnectRequest request)
 	{
 		if (!_sessionsPerMap.TryGetValue(request.MapId, out Session? session))
 		{
-			session = CreateSession(request, mapData);
+			await using ApplicationContext db = new();
+
+			Map? map = await db.Maps.FirstOrDefaultAsync(x => x.Id == request.MapId);
+			if (map == null)
+				return default;
+			
+			session = CreateSession(request, map.Content);
 		}
 
-		return session.GetRevisions(0);
+		return session;
 	}
 
 	// TODO: Methods should return object with result, error and session
