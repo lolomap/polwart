@@ -3,7 +3,7 @@ import * as api from '@/features/api';
 
 
 const signalr = new HubConnectionBuilder()
-    .withUrl('https://localhost:7238/notification')
+    .withUrl(import.meta.env.VITE_BACKEND_URL + '/notification')
     .build();
 
 let isReady: boolean;

@@ -23,7 +23,7 @@ builder.Services.AddCors(options =>
 				.AllowAnyHeader()
 				.AllowAnyMethod()
 				.AllowCredentials()
-				.WithOrigins("http://localhost:5173");
+				.WithOrigins(Environment.GetEnvironmentVariable("FRONTEND_ENDPOINT") ?? "*");
 		});
 });
 

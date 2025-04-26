@@ -30,8 +30,8 @@ async function Submit() {
     <Modal :isOpen="true">
         <StackPanel>
             <Field placeholder='Название' />
-            <Checkbox :onChange="(value) => {isPublic = value;}" title='Открытый доступ' />
-            <DateTimePicker :onChange="(value) => {timestampISO = value;}" />
+            <Checkbox :onChange="(value: boolean) => {isPublic = value;}" title='Открытый доступ' />
+            <DateTimePicker :onChange="(value: string) => {timestampISO = value;}" />
             <FileUpload
                 accept="image/*"
                 mode="basic"
