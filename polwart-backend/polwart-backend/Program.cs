@@ -2,7 +2,6 @@
 #undef VERBOSE_RESPONSES
 
 using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
 using polwart_backend;
 using polwart_backend.Entities;
 using polwart_backend.Hubs;
@@ -83,8 +82,10 @@ app.MapPost("/map/update", (UpdateRequest request) =>
 		Session? session = G.SessionsController.GetMapSession(request.MapId);
 		return session == null
 			? Results.NotFound()
-			: Results.Json(session.GetRevisions(request.SinceTimestamp)
-				.Select(x => JsonSerializer.Serialize(x.PatchData)));
+			: Results.Json(
+				session.GetRevisions(request.SinceTimestamp)
+					.Select(x => JsonSerializer.Serialize(x.PatchData)),
+				contentType: "application/json", statusCode: 200);
 	})
 	.WithName("UpdateMap")
 	.WithOpenApi();
@@ -110,7 +111,8 @@ app.MapPost("/map/create", async (CreateMapRequest request) =>
 
 		await db.Maps.AddAsync(map);
 		await db.SaveChangesAsync();
-		return Results.Ok();
+		return Results.Json(new {MapId = map.Id},
+			contentType: "application/json", statusCode: 200);
 	})
 	.WithName("CreateMap")
 	.WithOpenApi();

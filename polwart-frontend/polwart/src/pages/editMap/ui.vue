@@ -32,6 +32,8 @@ const currentSymbol = ref<Symbol>({
 const doesExists = ref(false);
 const isOpenTooltip = ref(false);
 
+let bgUrl = '';
+
 const graphRef = ref<RelationGraphComponent | null>(null);
 
 const graphOptions: RGOptions = {
@@ -52,7 +54,10 @@ if (Array.isArray(route.params.mapId))
 else mapId = parseInt(route.params.mapId);
 
 if (mapId > -1)
-    api.Connect(mapId);
+{
+    api.Connect(mapId)
+    .then(() => {bgUrl = api.GetMapImageAddress();});
+}
 const session = useSessionStore();
 
 // For testing without backend
@@ -389,8 +394,7 @@ function CreateSymbol(stype: SymbolType) {
         <RelationGraph ref="graphRef" :options="graphOptions" @node-click="GraphClickNode">
             <template #canvas-plug>
                 <div class="canvas">
-                    <div class="map-image"></div>
-                    
+                    <img class="map-image" :src=bgUrl />
                 </div>
             </template>
         </RelationGraph>
@@ -497,9 +501,9 @@ function CreateSymbol(stype: SymbolType) {
 
 .map-image {
     position: absolute;
-    background-repeat: no-repeat;
-    height: 800px;
-    width: 800px;
-    background-image: url('/favicon.ico');
+    top: 50%;
+    left: 50%;
+    transform: translateY(-50%) translateX(-50%);
+    pointer-events: none;
 }
 </style>

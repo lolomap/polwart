@@ -3,10 +3,8 @@ import * as signalr from '@/features/signalr';
 
 let session: any;
 
-//TODO: URLS in environment or config file
-
-const backendUrl = 'https://localhost:7238';
-const mediaUrl = 'http://192.168.1.162:8081/media';
+const backendUrl = import.meta.env.VITE_BACKEND_URL;
+const mediaUrl = import.meta.env.VITE_MEDIA_URL;
 
 let MapId: number = -1;
 let LastUpdateTimestamp = 0;
@@ -15,7 +13,31 @@ export async function MediaUpload(fileName: string, file: File) {
     fetch(mediaUrl + `/${fileName}`, {
         method: 'PUT',
         body: file
+    })
+    .then((response) => {});
+}
+
+export function GetMapImageAddress(): string {
+    return mediaUrl + `/mapBG_${MapId}`;
+};
+
+export async function Create(isPublic: boolean, initialTimestampISO: string) {
+    await fetch(backendUrl + '/map/create', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(
+            {
+                isPublic: isPublic,
+                initialTimestampISO: initialTimestampISO
+            }
+        )
+    })
+    .then(response => response.json())
+    .then(data => {
+        MapId = data.mapId;
     });
+
+    return MapId;
 }
 
 export async function Connect(mapId: number) {
@@ -69,10 +91,10 @@ export function Patch(patches: string) {
             }
         )
     })
-    .then(response => response.json())
-    .then(data => {
-        //console.log(data);
-        signalr.Notify();
+    .then(response => response.status)
+    .then(status => {
+        if (status == 200)
+            signalr.Notify();
     });
 };
 

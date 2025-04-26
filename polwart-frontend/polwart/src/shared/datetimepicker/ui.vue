@@ -3,23 +3,17 @@ import { computed, ref } from 'vue';
 
 interface Props {
     onChange?: (value: string) => void;
-    onEnter?: (value: string) => void;
-    placeholder?: string;
     disabled?: boolean;
     size?: 'm' | 'l';
     value?: string;
-    isSecret?: boolean;
 }
 
 const props = defineProps<Props>();
 const { 
-    placeholder = '', 
     disabled = false, 
     size = 'm',
     value = '',
     onChange = () => {},
-    onEnter = () => {},
-    isSecret = false
 } = props;
 
 const rValue = computed(() => props.value);
@@ -31,10 +25,8 @@ const rValue = computed(() => props.value);
         <div class="field__container">
             <input 
                 @input="(input) => {if(input.target) onChange((input.target as HTMLInputElement).value)}"
-                @keyup.enter="(input) => {if(input.target) onEnter((input.target as HTMLInputElement).value)}"
-                class="field__input" 
-                :placeholder="placeholder" 
-                :type="isSecret ? 'password' : 'text'" 
+                class="field__input"
+                type="datetime-local"
                 :disabled="disabled"
                 :value="rValue"
             />

@@ -6,17 +6,22 @@ import { Modal } from '@/widgets/modal';
 import { Typography } from '@/shared/typography';
 import { Checkbox } from '@/shared/checkbox';
 import FileUpload, { type FileUploadSelectEvent } from 'primevue/fileupload';
-import { MediaUpload } from '@/features/api';
 import { ref } from 'vue';
+import * as api from '@/features/api';
+import { DateTimePicker } from '@/shared/datetimepicker';
+import router from '@/app/router';
 
 const submitAvailable = ref(false);
 
 let mapImage: File | undefined;
+let isPublic: boolean;
+let timestampISO: string;
 
-function Submit() {
+async function Submit() {
     if (!mapImage) return;
-
-    MediaUpload(Date.now() + mapImage.name, mapImage);
+    let mapId: number = await api.Create(isPublic, timestampISO);
+    await api.MediaUpload(`mapBG_${mapId}`, mapImage);
+    router.push({name: 'edit', params: {mapId: mapId}});
 }
 
 </script>
@@ -25,8 +30,8 @@ function Submit() {
     <Modal :isOpen="true">
         <StackPanel>
             <Field placeholder='Название' />
-            <Checkbox title='Открытый доступ' />
-
+            <Checkbox :onChange="(value) => {isPublic = value;}" title='Открытый доступ' />
+            <DateTimePicker :onChange="(value) => {timestampISO = value;}" />
             <FileUpload
                 accept="image/*"
                 mode="basic"
@@ -45,8 +50,7 @@ function Submit() {
             />
 
             <Button
-                :disabled="!submitAvailable"
-                @click="Submit"
+                @click="() => {Submit();}"
             >
                 Создать карту
             </Button>
