@@ -64,8 +64,8 @@ export async function Connect(mapId: number) {
     })
     .then((data) => {
         // TODO: check success connection status before trying to read and subscribe
-        session.mapData = data.root.content;
-        map = data.root;
+        session.mapData = data.root;
+        map = data.map;
 
         data.revisions.forEach((revision: string) => {
             session.patch(revision);

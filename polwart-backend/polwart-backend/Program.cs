@@ -49,7 +49,8 @@ app.MapPost("/map/connect", async (ConnectRequest request) =>
 		return Results.Json(
 			new
 			{
-				Root = map,
+				Map = map,
+				Root = JsonSerializer.Deserialize<Dictionary<string, object>>(session.RootJson),
 				Revisions = session.GetRevisions(0).Select(x => JsonSerializer.Serialize(x.PatchData))
 			},
 			contentType: "application/json", statusCode: 200);
