@@ -10,9 +10,9 @@ public class SessionsController
 	private readonly Dictionary<int, Session> _sessionsPerMap = [];
 	private readonly Dictionary<string, Session> _sessionsPerConnections = [];
 
-	private Session CreateSession(ConnectRequest request, string mapData)
+	private Session CreateSession(ConnectRequest request, Map map)
 	{
-		Session session = new(request.MapId, mapData);
+		Session session = new(map);
 		session.Close += CloseSession;
 		_sessionsPerMap.Add(request.MapId, session);
 		
@@ -22,21 +22,20 @@ public class SessionsController
 		return session;
 	}
 
-	public async Task<(Map?, Session?)> Connect(ConnectRequest request)
+	public async Task<Session?> Connect(ConnectRequest request)
 	{
-		Map? map = default;
 		if (!_sessionsPerMap.TryGetValue(request.MapId, out Session? session))
 		{
 			await using ApplicationContext db = new();
 
-			map = await db.Maps.FirstOrDefaultAsync(x => x.Id == request.MapId);
+			Map? map = await db.Maps.FirstOrDefaultAsync(x => x.Id == request.MapId);
 			if (map == null)
 				return default;
 			
-			session = CreateSession(request, map.Content);
+			session = CreateSession(request, map);
 		}
 
-		return (map, session);
+		return session;
 	}
 
 	// TODO: Methods should return object with result, error and session
@@ -83,17 +82,17 @@ public class SessionsController
 		using ApplicationContext db = new();
 		
 		string updatedRoot = session.CombineRevisions();
-		Map? map = db.Maps.FirstOrDefault(x => x.Id == session.MapId);
+		Map? map = db.Maps.FirstOrDefault(x => x.Id == session.MapInfo.Id);
 		if (map == null) return;
 		map.Content = updatedRoot;
 		db.SaveChanges();
 		
-		_sessionsPerMap.Remove(session.MapId);
+		_sessionsPerMap.Remove(session.MapInfo.Id);
 		foreach (string connectionId in session.GetClientsEndpoints())
 		{
 			_sessionsPerConnections.Remove(connectionId);
 		}
 		
-		Console.WriteLine($"CLOSE SESSION FOR {session.MapId}");
+		Console.WriteLine($"CLOSE SESSION FOR {session.MapInfo.Id}");
 	}
 }

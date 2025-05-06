@@ -3,17 +3,17 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Json.Patch;
 using Microsoft.AspNetCore.SignalR;
+using polwart_backend.Entities;
 using polwart_backend.Requests;
 
 namespace polwart_backend;
 
-public class Session(int mapId, string root)
+public class Session(Map mapInfo)
 {
-	public readonly int MapId = mapId;
-	public readonly string RootJson = root;
+	public readonly Map MapInfo = mapInfo;
 	
 	private readonly Dictionary<string, ISingleClientProxy> _clients = [];
-	private readonly JsonNode _rootDocument = JsonNode.Parse(root)!;
+	private readonly JsonNode _rootDocument = JsonNode.Parse(mapInfo.Content)!;
 	private readonly SortedList<long, Revision> _revisions = [];
 	
 	public event Action<Session>? Close;

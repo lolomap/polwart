@@ -2,6 +2,7 @@ import { ref, reactive, watch } from 'vue';
 import { defineStore } from 'pinia';
 import { type User } from '@/entities/user';
 import { type Map } from '@/entities/Map/map';
+import { type Symbol } from './Map/Legend/symbol';
 import * as jsonpatch from 'jsonpatch';
 
 export const useSessionStore = defineStore('session', {

@@ -4,4 +4,6 @@ export type Symbol = {
     title: string;
 
     value: any;
+    x: number;
+    y: number;
 };

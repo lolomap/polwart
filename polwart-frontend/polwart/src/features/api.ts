@@ -9,6 +9,10 @@ const mediaUrl = import.meta.env.VITE_MEDIA_URL;
 let MapId: number = -1;
 let LastUpdateTimestamp = 0;
 
+export type UpdateEvent = {layer: number, index: number, value: any, type: string};
+
+export const Events = new EventTarget();
+
 export async function MediaUpload(fileName: string, file: File) {
     fetch(mediaUrl + `/${fileName}`, {
         method: 'PUT',
@@ -65,7 +69,7 @@ export async function Connect(mapId: number) {
     .then((data) => {
         // TODO: check success connection status before trying to read and subscribe
         session.mapData = data.root;
-        map = data.map;
+        map = data.mapInfo;
 
         data.revisions.forEach((revision: string) => {
             session.patch(revision);
@@ -130,7 +134,35 @@ export function Update() {
         //console.log(data);
 
         data.forEach((revision: string) => {
+            // Apply revision to local Map data
             session.patch(revision);
+
+            // Apply revision to graph UI
+            const patches = JSON.parse(revision);
+            patches.forEach((patch: any) => {
+                const path: string[] = patch.path.split('/');
+            
+                if (path[1] == 'layers') {
+                    let event: UpdateEvent = {
+                        layer: Number.parseInt(path[2]),
+                        index: Number.parseInt(path[4]),
+                        value: patch.value,
+                        type: ''
+                    };
+
+                    if (path[path.length - 1] == 'x') {
+                        event.type = 'x';
+                    }
+                    else if (path[path.length - 1] == 'y') {
+                        event.type = 'y';
+                    }
+                    else {
+                        event.type = patch.op;
+                    }
+
+                    Events.dispatchEvent(new CustomEvent('symbolUpdated', {detail: event}));
+                }
+            });
         });
 
         console.log(session.mapData);

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import RelationGraph, { type JsonNode, type RGNode, type RGUserEvent } from 'relation-graph-vue3';
+import RelationGraph, { type JsonNode, type RGEventHandler, type RGNode, type RGUserEvent } from 'relation-graph-vue3';
 import { RelationGraphComponent, type RGOptions } from 'relation-graph-vue3';
 import { Typography } from '@/shared/typography';
 import { useSessionStore } from '@/entities/store';
@@ -14,6 +14,7 @@ import { Field } from '@/shared/field';
 import { Checkbox } from '@/shared/checkbox';
 import { UseMouse } from '@vueuse/components';
 import { useRoute } from 'vue-router';
+import type { RelationGraphFinal } from 'relation-graph-vue3/types/types/relation-graph-models/models/RelationGraphFinal';
 
 const isOpenStypeEditor = ref(false);
 const currentSType = ref<SymbolType>({
@@ -27,10 +28,14 @@ const currentSymbol = ref<Symbol>({
     id: 0,
     type: 0,
     title: '',
-    value: undefined
+    value: undefined,
+    x: 0,
+    y: 0
 });
 const doesExists = ref(false);
 const isOpenTooltip = ref(false);
+
+const currentLayer = ref(0);
 
 let bgUrl = '';
 
@@ -46,6 +51,7 @@ const graphOptions: RGOptions = {
     defaultNodeColor: 'rgba(0, 206, 209, 1)',
     defaultLineColor: 'rgba(15, 71, 255)'
 }
+let graphInstance: RelationGraphFinal | undefined;
 
 const route = useRoute();
 let mapId: number = -1;
@@ -58,6 +64,19 @@ if (mapId > -1)
     api.Connect(mapId)
     .then((map: any) => {
         bgUrl = api.GetMapImageAddress() + '.' + map.backgroundFormat;
+
+        // Load every symbol on layer
+        for (const [index, symbol] of session.mapData?.layers[currentLayer.value].content.entries() ?? []) {
+            OnLoadMapSymbol({
+                layer: currentLayer.value,
+                index: index,
+                value: symbol,
+                type: 'add'
+            });
+        };
+
+        // Subscribe GUI on layer changes
+        api.Events.addEventListener('symbolUpdated', (e) => {OnLoadMapSymbol((e as CustomEvent).detail)});
     });
 }
 const session = useSessionStore();
@@ -110,7 +129,7 @@ async function ShowGraph() {
         ]
     };
 
-    const graphInstance = graphRef.value?.getInstance();
+    graphInstance = graphRef.value?.getInstance();
     if (graphInstance) {
         await graphInstance.setJsonData(__graph_json_data);
         await graphInstance.moveToCenter();
@@ -118,8 +137,36 @@ async function ShowGraph() {
     }
 }
 
+function OnLoadMapSymbol(event: api.UpdateEvent) {
+    switch (event.type) {
+        case 'x':
+        case 'y':
+        {
+            let symbol: Symbol | undefined = session.mapData?.layers[event.layer].content[event.index];
+            if (!symbol) return;
+
+            let node: RGNode | undefined = graphInstance?.getNodeById(symbol.id.toString());
+            if (!node) return;
+
+            if (event.type == "x")
+                node.x = event.value;
+            else node.y = event.value;
+
+            break;
+        }
+        case 'add':
+        {    
+            let symbol: Symbol | undefined = session.mapData?.layers[event.layer].content[event.index];
+            if (!symbol) return;
+
+            GraphAddNode(symbol);
+            break;
+        }
+    }
+}
+
 function GraphClickNode(node: RGNode, event: RGUserEvent) {
-    const symbol = map.GetSymbol(session.mapData!, 0, Number(node.id));
+    const symbol = map.GetSymbol(session.mapData!, currentLayer.value, Number(node.id));
     if (!symbol) return;
     const symbolType = map.GetSymbolType(session.mapData!, symbol.type);
     if (!symbolType) return;
@@ -130,28 +177,41 @@ function GraphClickNode(node: RGNode, event: RGUserEvent) {
 }
 
 async function GraphAddNode(symbol: Symbol) {
-    const graphInstance = graphRef.value?.getInstance();
+    graphInstance = graphRef.value?.getInstance();
     if (graphInstance) {
         const node: JsonNode[] = [
             {
                 id: symbol.id.toString(),
                 //text: symbol.title,
                 width: 20,
-                height: 20
+                height: 20,
+                fixed: true,
+                x: symbol.x,
+                y: symbol.y
             }
         ];
         await graphInstance.addNodes(node);
 
         // Bind hower tooltip to node
-        const htmlElement = document.querySelector(`[data-id="${symbol.id}"]`);
-        htmlElement?.addEventListener('mouseover', (event) => {
-            currentSymbol.value = symbol;
-            isOpenTooltip.value = true;
-        });
-        htmlElement?.addEventListener('mouseout', (event) => {
-            isOpenTooltip.value = false;
-        });
+        // const htmlElement = document.querySelector(`[data-id="${symbol.id}"]`);
+        // htmlElement?.addEventListener('mouseover', (event) => {
+        //     console.log(symbol);
+        //     currentSymbol.value = symbol;
+        //     isOpenTooltip.value = true;
+        // });
+        // htmlElement?.addEventListener('mouseout', (event) => {
+        //     isOpenTooltip.value = false;
+        // });
     }
+}
+
+function GraphDragEndNode(node: RGNode, event: RGUserEvent) {
+    const symbol = map.GetSymbol(session.mapData!, currentLayer.value, Number(node.id));
+    if (!symbol) return;
+
+    symbol.x = node.x;
+    symbol.y = node.y;
+    RequestUpdateSymbolPos(currentLayer.value, symbol);
 }
 
 function RequestCreateSType(stype: SymbolType) {
@@ -170,6 +230,24 @@ function RequestUpdateSType(stype: SymbolType) {
     }
 
     const patch = map.UpdateSymbolType(session.mapData, stype);
+    api.Patch(patch);
+}
+function RequestUpdateSymbol(layer: number, s: Symbol) {
+    if (!session.mapData) {
+        console.error('Map is not instantiated');
+        return;
+    }
+
+    const patch = map.UpdateSymbol(session.mapData, layer, s);
+    api.Patch(patch);
+}
+function RequestUpdateSymbolPos(layer: number, s: Symbol) {
+    if (!session.mapData) {
+        console.error('Map is not instantiated');
+        return;
+    }
+
+    const patch = map.UpdateSymbolPos(session.mapData, layer, s);
     api.Patch(patch);
 }
 
@@ -198,9 +276,9 @@ function CreateSymbol(stype: SymbolType) {
         initValue.set(property.name, v);
     });
 
-    const symbol: Symbol = {id: Date.now(), type: stype.id, title: `${Date.now()}`, value: initValue};
-    const patch = map.AddSymbol(session.mapData, 0, symbol);
-    GraphAddNode(symbol);
+    const symbol: Symbol = {id: Date.now(), type: stype.id, title: 'Новый элемент', value: initValue, x: 0, y: 0};
+    const patch = map.AddSymbol(session.mapData, currentLayer.value, symbol);
+    //GraphAddNode(symbol);
     console.log(patch);
     api.Patch(patch);
 }
@@ -393,7 +471,11 @@ function CreateSymbol(stype: SymbolType) {
     </div>
 
     <div class="root-graph">
-        <RelationGraph ref="graphRef" :options="graphOptions" @node-click="GraphClickNode">
+        <RelationGraph ref="graphRef"
+            :options="graphOptions" 
+            @node-click="GraphClickNode"
+            @node-drag-end="GraphDragEndNode"
+        >
             <template #canvas-plug>
                 <div class="canvas">
                     <img class="map-image" :src=bgUrl />

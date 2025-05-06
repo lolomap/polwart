@@ -42,15 +42,15 @@ app.MapHub<NotificationHub>("/notification");
 
 app.MapPost("/map/connect", async (ConnectRequest request) =>
 	{
-		(Map? map, Session ? session) = await G.SessionsController.Connect(request);
-		if (session == null || map == null)
+		Session? session = await G.SessionsController.Connect(request);
+		if (session == null)
 			return Results.NotFound();
 
 		return Results.Json(
 			new
 			{
-				Map = map,
-				Root = JsonSerializer.Deserialize<Dictionary<string, object>>(session.RootJson),
+				session.MapInfo,
+				Root = JsonSerializer.Deserialize<Dictionary<string, object>>(session.MapInfo.Content),
 				Revisions = session.GetRevisions(0).Select(x => JsonSerializer.Serialize(x.PatchData))
 			},
 			contentType: "application/json", statusCode: 200);
