@@ -19,11 +19,10 @@ builder.Services.AddCors(options =>
 		policy  =>
 		{
 			policy
-				.AllowAnyOrigin()
+				.WithOrigins(Environment.GetEnvironmentVariable("FRONTEND_ENDPOINT") ?? "*")
 				.AllowAnyHeader()
 				.AllowAnyMethod()
-				.AllowCredentials()
-				.WithOrigins(Environment.GetEnvironmentVariable("FRONTEND_ENDPOINT") ?? "*");
+				.AllowCredentials();
 		});
 });
 
@@ -43,14 +42,14 @@ app.MapHub<NotificationHub>("/notification");
 
 app.MapPost("/map/connect", async (ConnectRequest request) =>
 	{
-		Session? session = await G.SessionsController.Connect(request);
-		if (session == null)
+		(Map? map, Session ? session) = await G.SessionsController.Connect(request);
+		if (session == null || map == null)
 			return Results.NotFound();
 
 		return Results.Json(
 			new
 			{
-				Root = JsonSerializer.Deserialize<Dictionary<string, object>>(session.RootJson),
+				Root = map,
 				Revisions = session.GetRevisions(0).Select(x => JsonSerializer.Serialize(x.PatchData))
 			},
 			contentType: "application/json", statusCode: 200);
@@ -96,6 +95,7 @@ app.MapPost("/map/create", async (CreateMapRequest request) =>
 		Map map = new()
 		{
 			IsPublic = request.IsPublic,
+			BackgroundFormat = request.BackgroundFormat,
 			Content = JsonSerializer.Serialize(new
 			{
 				legend = (object[]) [],

@@ -56,7 +56,9 @@ else mapId = parseInt(route.params.mapId);
 if (mapId > -1)
 {
     api.Connect(mapId)
-    .then(() => {bgUrl = api.GetMapImageAddress();});
+    .then((map: any) => {
+        bgUrl = api.GetMapImageAddress() + '.' + map.backgroundFormat;
+    });
 }
 const session = useSessionStore();
 

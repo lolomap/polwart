@@ -19,8 +19,9 @@ let timestampISO: string;
 
 async function Submit() {
     if (!mapImage) return;
-    let mapId: number = await api.Create(isPublic, timestampISO);
-    await api.MediaUpload(`mapBG_${mapId}`, mapImage);
+    let extension: string = (/(?:\.([^.]+))?$/.exec(mapImage.name) ?? [])[1] ?? '';
+    let mapId: number = await api.Create(isPublic, timestampISO, extension);
+    await api.MediaUpload(`mapBG_${mapId}.${extension}`, mapImage);
     router.push({name: 'edit', params: {mapId: mapId}});
 }
 

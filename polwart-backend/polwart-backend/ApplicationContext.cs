@@ -9,6 +9,10 @@ public sealed class ApplicationContext : DbContext
 	
 	public ApplicationContext() => Database.EnsureCreated();
 
+	public ApplicationContext(DbContextOptions<ApplicationContext> options) : base(options)
+	{
+	}
+
 	protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 	{
 		optionsBuilder.UseNpgsql(Environment.GetEnvironmentVariable("POSTGRES_CONNECTION_STRING"));

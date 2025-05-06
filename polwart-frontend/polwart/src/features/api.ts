@@ -21,14 +21,15 @@ export function GetMapImageAddress(): string {
     return mediaUrl + `/mapBG_${MapId}`;
 };
 
-export async function Create(isPublic: boolean, initialTimestampISO: string) {
+export async function Create(isPublic: boolean, initialTimestampISO: string, bgFormat: string) {
     await fetch(backendUrl + '/map/create', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(
             {
                 isPublic: isPublic,
-                initialTimestampISO: initialTimestampISO
+                initialTimestampISO: initialTimestampISO,
+                backgroundFormat: bgFormat
             }
         )
     })
@@ -46,8 +47,9 @@ export async function Connect(mapId: number) {
     session = useSessionStore();
     MapId = mapId;
     let status: number;
+    let map = null;
 
-    fetch(backendUrl + '/map/connect', {
+    await fetch(backendUrl + '/map/connect', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(
@@ -62,7 +64,8 @@ export async function Connect(mapId: number) {
     })
     .then((data) => {
         // TODO: check success connection status before trying to read and subscribe
-        session.mapData = data.root;
+        session.mapData = data.root.content;
+        map = data.root;
 
         data.revisions.forEach((revision: string) => {
             session.patch(revision);
@@ -72,6 +75,8 @@ export async function Connect(mapId: number) {
 
         signalr.Subscribe(MapId);
     });
+
+    return map;
 };
 
 export function Patch(patches: string) {

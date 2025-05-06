@@ -6,5 +6,6 @@ public class Map
 {
 	public int Id { get; set; }
 	public bool IsPublic { get; set; }
+	public string BackgroundFormat { get; set; } = "";
 	[Column(TypeName = "jsonb")] public string Content { get; set; } = "";
 }
