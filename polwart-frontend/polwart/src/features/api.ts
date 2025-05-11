@@ -1,3 +1,5 @@
+import type { SymbolType } from '@/entities/Map/Legend/symbol-type';
+import type { Map } from '@/entities/Map/map';
 import { useSessionStore } from '@/entities/store';
 import * as signalr from '@/features/signalr';
 
@@ -21,9 +23,20 @@ export async function MediaUpload(fileName: string, file: File) {
     .then((response) => {});
 }
 
+export function ImageFileToUrl(file: File | undefined) : string {
+    if (!file)
+        return '#';
+    return URL.createObjectURL(file);
+}
+
 export function GetMapImageAddress(): string {
     return mediaUrl + `/mapBG_${MapId}`;
 };
+
+export function GetSTypeImageAddress(stype: SymbolType): string {
+    return mediaUrl + `/SType_${MapId}_${stype.id}.${stype.iconFormat}`;
+};
+
 
 export async function Create(isPublic: boolean, initialTimestampISO: string, bgFormat: string) {
     await fetch(backendUrl + '/map/create', {
@@ -158,6 +171,7 @@ export function Update() {
                     }
                     else {
                         event.type = patch.op;
+                        event.index = (session.mapData as Map).layers[event.layer].content.length - 1;
                     }
 
                     Events.dispatchEvent(new CustomEvent('symbolUpdated', {detail: event}));

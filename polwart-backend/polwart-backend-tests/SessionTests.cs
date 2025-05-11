@@ -1,4 +1,5 @@
 using polwart_backend;
+using polwart_backend.Entities;
 
 namespace polwart_backend_tests;
 
@@ -9,7 +10,7 @@ public class SessionTests
 	[SetUp]
 	public void Setup()
 	{
-		_session = new(0, "");
+		_session = new(new());
 	}
 
 	[Test]

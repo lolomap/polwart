@@ -16,7 +16,7 @@ const {
     disabled = false
 } = props;
 
-const classes = ['button', `size_${size}`, `decoration_${decoration}`, `color_${color}`];
+const classes = ['button', `size_${size}`, `decoration_${decoration}`, `color_${color}`, `disabled_${disabled}`];
 </script>
 
 <template>
@@ -35,6 +35,10 @@ const classes = ['button', `size_${size}`, `decoration_${decoration}`, `color_${
     border-radius: 4px;
     cursor: pointer;
     color: var(--main-on-default);
+}
+
+.disabled_true {
+    opacity: 0.5;
 }
 
 .button__text {

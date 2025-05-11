@@ -15,12 +15,14 @@ import { Checkbox } from '@/shared/checkbox';
 import { UseMouse } from '@vueuse/components';
 import { useRoute } from 'vue-router';
 import type { RelationGraphFinal } from 'relation-graph-vue3/types/types/relation-graph-models/models/RelationGraphFinal';
+import FileUpload, { type FileUploadSelectEvent } from 'primevue/fileupload';
 
 const isOpenStypeEditor = ref(false);
 const currentSType = ref<SymbolType>({
     id: 0,
     name: '',
-    properties: []
+    properties: [],
+    iconFormat: 'png'
 });
 const isOpenSymbolEditor = ref(false);
 const isReadSymbolEditor = ref(true);
@@ -32,12 +34,17 @@ const currentSymbol = ref<Symbol>({
     x: 0,
     y: 0
 });
+const blockModalClose = ref(false);
 const doesExists = ref(false);
 const isOpenTooltip = ref(false);
 
 const currentLayer = ref(0);
 
 let bgUrl = '';
+const iconsRefresherKey = ref(0);
+const forceRerenderIcons = () => {
+    iconsRefresherKey.value += 1;
+}
 
 const graphRef = ref<RelationGraphComponent | null>(null);
 
@@ -59,6 +66,7 @@ if (Array.isArray(route.params.mapId))
     mapId = parseInt(route.params.mapId[0]);
 else mapId = parseInt(route.params.mapId);
 
+//*
 if (mapId > -1)
 {
     api.Connect(mapId)
@@ -79,38 +87,8 @@ if (mapId > -1)
         api.Events.addEventListener('symbolUpdated', (e) => {OnLoadMapSymbol((e as CustomEvent).detail)});
     });
 }
-const session = useSessionStore();
-
-// For testing without backend
-/*
-session.mapData = {
-    layers: [
-        {content: [], timestampISO: ''}
-    ],
-    legend: [
-        {
-            id: 0,
-            name: 'Test Type',
-            properties: [
-                {
-                    name: 'Name',
-                    type: 'string',
-                    isEditable: true,
-                    isCombo: false,
-                    comboValues: []
-                },
-                {
-                    name: 'Value',
-                    type: 'integer',
-                    isEditable: true,
-                    isCombo: false,
-                    comboValues: []
-                }
-            ]
-        }
-    ]
-};
 //*/
+const session = useSessionStore();
 
 onMounted(() => {
     ShowGraph();
@@ -165,6 +143,14 @@ function OnLoadMapSymbol(event: api.UpdateEvent) {
     }
 }
 
+function GetSymbolImageAdress(id: number): string {
+    const symbol = map.GetSymbol(session.mapData!, currentLayer.value, Number(id));
+    if (!symbol) return '#';
+    const symbolType = map.GetSymbolType(session.mapData!, symbol.type);
+    if (!symbolType) return '#';
+    return api.GetSTypeImageAddress(symbolType);
+}
+
 function GraphClickNode(node: RGNode, event: RGUserEvent) {
     const symbol = map.GetSymbol(session.mapData!, currentLayer.value, Number(node.id));
     if (!symbol) return;
@@ -177,6 +163,9 @@ function GraphClickNode(node: RGNode, event: RGUserEvent) {
 }
 
 async function GraphAddNode(symbol: Symbol) {
+    const symbolType = map.GetSymbolType(session.mapData!, symbol.type);
+    if (!symbolType) return;
+
     graphInstance = graphRef.value?.getInstance();
     if (graphInstance) {
         const node: JsonNode[] = [
@@ -187,7 +176,7 @@ async function GraphAddNode(symbol: Symbol) {
                 height: 20,
                 fixed: true,
                 x: symbol.x,
-                y: symbol.y
+                y: symbol.y,
             }
         ];
         await graphInstance.addNodes(node);
@@ -289,6 +278,42 @@ function CreateSymbol(stype: SymbolType) {
     <Modal :is-open="isOpenStypeEditor">
         <div class="modal-stype-editor">
             <div class="stype-editor-header">
+                <FileUpload
+                    accept="image/*"
+                    :multiple="false"
+                    :maxFileSize="15 * 1000000"
+                    @select="async (e: FileUploadSelectEvent) => {
+                        let icon: File;
+                        if (Array.isArray(e.files))
+                            icon = e.files[e.files.length - 1];
+                        else icon = e.files;
+
+                        let extension: string = (/(?:\.([^.]+))?$/.exec(icon.name) ?? [])[1];
+                            currentSType.iconFormat = extension;
+                        blockModalClose = true;
+                        await api.MediaUpload(`SType_${mapId}_${currentSType.id}.${extension}`, icon);
+                        blockModalClose = false;
+                    }"
+                    :auto="false"
+                >
+                    <template #header="{ chooseCallback, uploadCallback, clearCallback, files }">
+                        <div class="icon-uploader-header">
+                            <img v-if="files.length < 1" class="stype-icon"
+                                src="/add_photo.svg"
+                                @click="chooseCallback()" />
+                            <img v-if="files.length > 0" class="stype-icon"
+                                :src="files[files.length - 1].objectURL"
+                                @click="chooseCallback()" 
+                            />
+                        </div>
+                    </template>
+                    <template #content><div></div></template>
+                    <template #empty>
+                        <div>
+                            
+                        </div>
+                    </template>
+                </FileUpload>
                 <Field
                     placeholder="Название обозначения"
                     :value="currentSType?.name"
@@ -355,12 +380,14 @@ function CreateSymbol(stype: SymbolType) {
             </div>
 
             <Button
+                :disabled="blockModalClose"
                 @click="() => {
                     if (!doesExists)
                         RequestCreateSType(currentSType);
                     else RequestUpdateSType(currentSType);
                     doesExists = false;
                     isOpenStypeEditor = false;
+                    forceRerenderIcons();
                 }"
                 color="good"
             >
@@ -434,8 +461,17 @@ function CreateSymbol(stype: SymbolType) {
     <div class="legend-block">
         <Typography tag="h4"><u>Легенда</u></Typography>
         <div class="legend-stype-list">
-            <div class="legend-stype-row" v-for="stype in session.mapData?.legend">
+            <div class="legend-stype-row" v-for="stype in session.mapData?.legend" :key="stype.id + iconsRefresherKey">
                 <div class="legend-stype-name">
+                    <img class="stype-icon"
+                        :src="api.GetSTypeImageAddress(stype)"
+                        @error="($event.target! as HTMLImageElement).src='/add_photo.svg'"
+                        @click="() => {
+                            currentSType = stype;
+                            doesExists = true;
+                            isOpenStypeEditor = true;
+                        }"
+                    />
                     <Typography tag="p">{{ stype.name }}</Typography>
                 </div>
                 <div class="legend-stype-tools">
@@ -462,7 +498,7 @@ function CreateSymbol(stype: SymbolType) {
         <Button
             @click="() => {
                 doesExists = false;
-                currentSType = {id: Date.now(), name: '', properties: []};
+                currentSType = {id: Date.now(), name: '', properties: [], iconFormat: 'png'};
                 isOpenStypeEditor = true;
             }"
         >
@@ -476,6 +512,13 @@ function CreateSymbol(stype: SymbolType) {
             @node-click="GraphClickNode"
             @node-drag-end="GraphDragEndNode"
         >
+            <template #node="{node}">
+                <img :src="`${GetSymbolImageAdress(Number((node as RGNode).id))}`"
+                    class="symbol-icon"
+                    :key="(node as RGNode).id + iconsRefresherKey"
+                    :width="`${(node as RGNode).width}px`"
+                    :height="`${(node as RGNode).height}px`" />
+            </template>
             <template #canvas-plug>
                 <div class="canvas">
                     <img class="map-image" :src=bgUrl />
@@ -485,7 +528,23 @@ function CreateSymbol(stype: SymbolType) {
     </div>
 </template>
 
+<style>
+.p-fileupload-header {
+    border: none !important;
+}
+
+.symbol-icon {
+    pointer-events: none;
+}
+</style>
+
 <style scoped>
+.stype-icon {
+    width: 42px;
+    height: 42px;
+    cursor: pointer;
+}
+
 .modal-stype-editor, .modal-symbol-editor, .node-tooltip {
     display: flex;
     flex-direction: column;

@@ -11,6 +11,8 @@ export type SymbolProperty = {
 export type SymbolType = {
     id: number;
     name: string;
+
+    iconFormat: string;
     
     properties: SymbolProperty[];
 };

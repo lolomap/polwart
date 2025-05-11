@@ -47,7 +47,7 @@ async function Submit() {
                         submitAvailable = true;
                     else submitAvailable = false;
                 }"
-                :auto="false" chooseLabel="Загрузить:"
+                :auto="false" chooseLabel="Карта:"
             />
 
             <Button
