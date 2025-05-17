@@ -144,14 +144,33 @@ export function Update() {
             return;
         }
 
-        //console.log(data);
-
         data.forEach((revision: string) => {
+            const patches = JSON.parse(revision);
+
+            // Apply remove revision to graph UI before patching map
+            patches.forEach((patch: any) => {
+                const path: string[] = patch.path.split('/');
+            
+                if (path[1] == 'layers') {
+                    let event: UpdateEvent = {
+                        layer: Number.parseInt(path[2]),
+                        index: Number.parseInt(path[4]),
+                        value: patch.value,
+                        type: ''
+                    };
+                    if (patch.op == 'remove') {
+                        event.type = patch.op;
+                        event.value = (session.mapData as Map).layers[event.layer].content[event.index].id;
+                    }
+
+                    Events.dispatchEvent(new CustomEvent('symbolUpdated', {detail: event}));
+                }
+            });
+
             // Apply revision to local Map data
             session.patch(revision);
 
             // Apply revision to graph UI
-            const patches = JSON.parse(revision);
             patches.forEach((patch: any) => {
                 const path: string[] = patch.path.split('/');
             
@@ -169,7 +188,7 @@ export function Update() {
                     else if (path[path.length - 1] == 'y') {
                         event.type = 'y';
                     }
-                    else {
+                    else if (patch.op == 'add') {
                         event.type = patch.op;
                         event.index = (session.mapData as Map).layers[event.layer].content.length - 1;
                     }

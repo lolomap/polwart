@@ -140,6 +140,12 @@ function OnLoadMapSymbol(event: api.UpdateEvent) {
             GraphAddNode(symbol);
             break;
         }
+        case 'remove':
+        {
+            console.log(event);
+            GraphRemoveNode(event.value);
+            break;
+        }
     }
 }
 
@@ -162,6 +168,19 @@ function GraphClickNode(node: RGNode, event: RGUserEvent) {
     isOpenSymbolEditor.value = true;
 }
 
+function GraphNodeOver(node: RGNode, $event: any) {
+    let symbol = map.GetSymbol(session.mapData!, currentLayer.value, Number(node.id));
+    if (symbol)
+    {
+        currentSymbol.value = symbol;
+        isOpenTooltip.value = true;
+    }
+}
+
+function GraphNodeOut(node: RGNode, $event: any) {
+    isOpenTooltip.value = false;
+}
+
 async function GraphAddNode(symbol: Symbol) {
     const symbolType = map.GetSymbolType(session.mapData!, symbol.type);
     if (!symbolType) return;
@@ -180,17 +199,13 @@ async function GraphAddNode(symbol: Symbol) {
             }
         ];
         await graphInstance.addNodes(node);
+    }
+}
 
-        // Bind hower tooltip to node
-        // const htmlElement = document.querySelector(`[data-id="${symbol.id}"]`);
-        // htmlElement?.addEventListener('mouseover', (event) => {
-        //     console.log(symbol);
-        //     currentSymbol.value = symbol;
-        //     isOpenTooltip.value = true;
-        // });
-        // htmlElement?.addEventListener('mouseout', (event) => {
-        //     isOpenTooltip.value = false;
-        // });
+async function GraphRemoveNode(id: number) {
+    graphInstance = graphRef.value?.getInstance();
+    if (graphInstance) {
+        await graphInstance.removeNodeById(id.toString());
     }
 }
 
@@ -212,6 +227,15 @@ function RequestCreateSType(stype: SymbolType) {
     const patch = map.AddSymbolType(session.mapData, stype);
     api.Patch(patch);
 }
+function RequestRemoveSType(stype: SymbolType) {
+    if (!session.mapData) {
+        console.error('Map is not instantiated');
+        return;
+    }
+
+    const patch = map.RemoveSymbolType(session.mapData, stype);
+    api.Patch(patch);
+}
 function RequestUpdateSType(stype: SymbolType) {
     if (!session.mapData) {
         console.error('Map is not instantiated');
@@ -219,6 +243,15 @@ function RequestUpdateSType(stype: SymbolType) {
     }
 
     const patch = map.UpdateSymbolType(session.mapData, stype);
+    api.Patch(patch);
+}
+function RequestRemoveSymbol(layer: number, s: Symbol) {
+    if (!session.mapData) {
+        console.error('Map is not instantiated');
+        return;
+    }
+
+    const patch = map.RemoveSymbol(session.mapData, layer, s);
     api.Patch(patch);
 }
 function RequestUpdateSymbol(layer: number, s: Symbol) {
@@ -413,14 +446,21 @@ function CreateSymbol(stype: SymbolType) {
                             isReadSymbolEditor = !isReadSymbolEditor;
                         }"
                     >E</Button>
+                    <Button
+                        color="alert"
+                        @click="() => {
+                            RequestRemoveSymbol(currentLayer, currentSymbol);
+                            isOpenSymbolEditor = false;
+                        }"
+                    >X</Button>
                 </div>
             </div>
 
             <div class="symbol-editor-properties-list">
-                <div class="symbol-editor-property-row" v-for="property in currentSymbol?.value?.entries()">
-                    <Typography tag="p">{{ property[0] }}:</Typography>
+                <div class="symbol-editor-property-row" v-for="propertyName in (Object.getOwnPropertyNames(currentSymbol?.value ?? {}) ?? [])">
+                    <Typography tag="p">{{ propertyName }}:</Typography>
 
-                    <Typography tag="p" v-if="isReadSymbolEditor">{{ property[1] }}</Typography>
+                    <Typography tag="p" v-if="isReadSymbolEditor">{{ currentSymbol?.value[propertyName] }}</Typography>
                     <!-- Different inputs depending on property.type. They should be disabled in non-edit mode -->
                     <Field v-if="!isReadSymbolEditor" />
                 </div>
@@ -428,10 +468,6 @@ function CreateSymbol(stype: SymbolType) {
 
             <Button
                 @click="() => {
-                    if (!doesExists)
-                        {/**/}
-                    else {/** */}
-                    doesExists = false;
                     isOpenSymbolEditor = false;
                 }"
                 color="good"
@@ -450,9 +486,9 @@ function CreateSymbol(stype: SymbolType) {
             </div>
 
             <div class="symbol-tooltip-properties-list">
-                <div class="symbol-tooltip-property-row" v-for="property in currentSymbol?.value?.entries()">
-                    <Typography tag="p">{{ property[0] }}:</Typography>
-                    <Typography tag="p">{{ property[1] }}</Typography>
+                <div class="symbol-tooltip-property-row" v-for="propertyName in (Object.getOwnPropertyNames(currentSymbol?.value ?? {}) ?? [])">
+                    <Typography tag="p">{{ propertyName }}:</Typography>
+                    <Typography tag="p">{{ currentSymbol?.value[propertyName] }}</Typography>
                 </div>
             </div>
         </div>
@@ -491,6 +527,9 @@ function CreateSymbol(stype: SymbolType) {
                     >E</Button>
                     <Button
                         color="alert"
+                        @click="() => {
+                            RequestRemoveSType(stype);
+                        }"
                     >X</Button>
                 </div>
             </div>
@@ -513,11 +552,17 @@ function CreateSymbol(stype: SymbolType) {
             @node-drag-end="GraphDragEndNode"
         >
             <template #node="{node}">
-                <img :src="`${GetSymbolImageAdress(Number((node as RGNode).id))}`"
-                    class="symbol-icon"
-                    :key="(node as RGNode).id + iconsRefresherKey"
-                    :width="`${(node as RGNode).width}px`"
-                    :height="`${(node as RGNode).height}px`" />
+                <div
+                    @mouseover="GraphNodeOver(node, $event)"
+                    @mouseout="GraphNodeOut(node, $event)"
+                >
+                    <img :src="`${GetSymbolImageAdress(Number((node as RGNode).id))}`"
+                        class="symbol-icon"
+                        :key="(node as RGNode).id + iconsRefresherKey"
+                        :width="`${(node as RGNode).width}px`"
+                        :height="`${(node as RGNode).height}px`"
+                    />
+                </div>
             </template>
             <template #canvas-plug>
                 <div class="canvas">

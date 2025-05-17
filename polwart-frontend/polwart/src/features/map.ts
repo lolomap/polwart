@@ -19,6 +19,19 @@ export function AddSymbolType(map: Map, stype: SymbolType): string {
     `;
 }
 
+export function RemoveSymbolType(map: Map, stype: SymbolType): string {
+    const index = map.legend.findIndex(el => el.id == stype.id);
+
+    return `
+    [
+        {
+            "op": "remove",
+            "path": "/legend/${index}"
+        }
+    ]
+    `;
+}
+
 export function UpdateSymbolType(map: Map, stype: SymbolType): string {
     const index = map.legend.findIndex(el => el.id == stype.id);
     if (index < 0 || map.legend.length <= index) {
@@ -52,14 +65,35 @@ export function AddSymbol(map: Map, layer: number, symbol: Symbol): string {
     `;
 }
 
-export function UpdateSymbol(map: Map, layer: number, symbol: Symbol) {
+export function RemoveSymbol(map: Map, layer: number, symbol: Symbol) {
     if (map.layers.length < layer || layer < 0) {
-        console.error('Cannot update Symbol that not presented in Legend');
+        console.error('Cannot remove Symbol that not presented in Content');
         return '';
     }
     const index = map.layers[layer].content.findIndex(el => el.id == symbol.id);
     if (index < 0 || map.layers[layer].content.length <= index) {
-        console.error('Cannot update Symbol that not presented in Legend');
+        console.error('Cannot remove Symbol that not presented in Content');
+        return '';
+    }
+
+    return `
+    [
+        {
+            "op": "remove",
+            "path": "/layers/${layer}/content/${index}"
+        }
+    ]
+    `;
+}
+
+export function UpdateSymbol(map: Map, layer: number, symbol: Symbol) {
+    if (map.layers.length < layer || layer < 0) {
+        console.error('Cannot update Symbol that not presented in Content');
+        return '';
+    }
+    const index = map.layers[layer].content.findIndex(el => el.id == symbol.id);
+    if (index < 0 || map.layers[layer].content.length <= index) {
+        console.error('Cannot update Symbol that not presented in Content');
         return '';
     }
 
@@ -76,12 +110,12 @@ export function UpdateSymbol(map: Map, layer: number, symbol: Symbol) {
 
 export function UpdateSymbolPos(map: Map, layer: number, symbol: Symbol) {
     if (map.layers.length < layer || layer < 0) {
-        console.error('Cannot update Symbol that not presented in Legend');
+        console.error('Cannot update Symbol that not presented in Content');
         return '';
     }
     const index = map.layers[layer].content.findIndex(el => el.id == symbol.id);
     if (index < 0 || map.layers[layer].content.length <= index) {
-        console.error('Cannot update Symbol that not presented in Legend');
+        console.error('Cannot update Symbol that not presented in Content');
         return '';
     }
 
