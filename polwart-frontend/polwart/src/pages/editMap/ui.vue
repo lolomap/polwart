@@ -169,12 +169,14 @@ function GraphClickNode(node: RGNode, event: RGUserEvent) {
 }
 
 function GraphNodeOver(node: RGNode, $event: any) {
-    let symbol = map.GetSymbol(session.mapData!, currentLayer.value, Number(node.id));
-    if (symbol)
-    {
-        currentSymbol.value = symbol;
-        isOpenTooltip.value = true;
-    }
+    const symbol = map.GetSymbol(session.mapData!, currentLayer.value, Number(node.id));
+    if (!symbol) return;
+    const symbolType = map.GetSymbolType(session.mapData!, symbol.type);
+    if (!symbolType) return;
+
+    currentSymbol.value = symbol;
+    currentSType.value = symbolType;
+    isOpenTooltip.value = true;
 }
 
 function GraphNodeOut(node: RGNode, $event: any) {
@@ -298,10 +300,9 @@ function CreateSymbol(stype: SymbolType) {
         initValue.set(property.name, v);
     });
 
-    const symbol: Symbol = {id: Date.now(), type: stype.id, title: 'Новый элемент', value: initValue, x: 0, y: 0};
+    const symbol: Symbol = {id: Date.now(), type: stype.id, title: stype.name, value: Object.fromEntries(initValue), x: 0, y: 0};
     const patch = map.AddSymbol(session.mapData, currentLayer.value, symbol);
     //GraphAddNode(symbol);
-    console.log(patch);
     api.Patch(patch);
 }
 
@@ -457,17 +458,42 @@ function CreateSymbol(stype: SymbolType) {
             </div>
 
             <div class="symbol-editor-properties-list">
-                <div class="symbol-editor-property-row" v-for="propertyName in (Object.getOwnPropertyNames(currentSymbol?.value ?? {}) ?? [])">
-                    <Typography tag="p">{{ propertyName }}:</Typography>
+                <div class="symbol-editor-property-row" v-for="property in currentSType.properties">
+                    <Typography tag="p">{{ property.name }}:</Typography>
 
-                    <Typography tag="p" v-if="isReadSymbolEditor">{{ currentSymbol?.value[propertyName] }}</Typography>
+                    <Typography tag="p"
+                        v-if="isReadSymbolEditor && property?.type != 'boolean'">
+                        {{ currentSymbol.value[property.name] }}
+                    </Typography>
+                    <Typography tag="p"
+                        v-if="isReadSymbolEditor && property?.type == 'boolean'">
+                        {{ currentSymbol.value[property.name] ? '✅' : '❌' }}
+                    </Typography>
                     <!-- Different inputs depending on property.type. They should be disabled in non-edit mode -->
-                    <Field v-if="!isReadSymbolEditor" />
+                    <Field v-if="!isReadSymbolEditor && property?.type == 'string'"
+                        :onChange="(text: string) => {currentSymbol.value[property.name] = text;}"
+                        :value="currentSymbol.value[property.name]"
+                    />
+                    <Field v-if="!isReadSymbolEditor && property?.type == 'integer'"
+                        :isNumber="true"
+                        :onChange="(text: string) => {currentSymbol.value[property.name] = Number.parseInt(text);}"
+                        :value="currentSymbol.value[property.name]"
+                    />
+                    <Field v-if="!isReadSymbolEditor && property?.type == 'float'"
+                        :isNumber="true"
+                        :onChange="(text: string) => {currentSymbol.value[property.name] = Number.parseFloat(text);}"
+                        :value="currentSymbol.value[property.name]"
+                    />
+                    <Checkbox v-if="!isReadSymbolEditor && property?.type == 'boolean'"
+                        :onChange="(checked: boolean) => {currentSymbol.value[property.name] = checked;}"
+                        :value="currentSymbol.value[property.name]"
+                    />
                 </div>
             </div>
 
             <Button
                 @click="() => {
+                    RequestUpdateSymbol(currentLayer, currentSymbol);
                     isOpenSymbolEditor = false;
                 }"
                 color="good"
@@ -486,9 +512,18 @@ function CreateSymbol(stype: SymbolType) {
             </div>
 
             <div class="symbol-tooltip-properties-list">
-                <div class="symbol-tooltip-property-row" v-for="propertyName in (Object.getOwnPropertyNames(currentSymbol?.value ?? {}) ?? [])">
-                    <Typography tag="p">{{ propertyName }}:</Typography>
-                    <Typography tag="p">{{ currentSymbol?.value[propertyName] }}</Typography>
+                <div class="symbol-tooltip-property-row" v-for="property in currentSType.properties">
+                    <Typography tag="p">{{ property.name }}:</Typography>
+                    <Typography tag="p"
+                        v-if="property?.type != 'boolean'"
+                    >
+                        {{ currentSymbol.value[property.name] }}
+                    </Typography>
+                    <Typography tag="p"
+                        v-if="property?.type == 'boolean'"
+                    >
+                        {{ currentSymbol.value[property.name] ? '✅' : '❌' }}
+                    </Typography>
                 </div>
             </div>
         </div>

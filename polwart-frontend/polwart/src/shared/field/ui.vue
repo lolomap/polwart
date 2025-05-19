@@ -7,8 +7,9 @@ interface Props {
     placeholder?: string;
     disabled?: boolean;
     size?: 'm' | 'l';
-    value?: string;
+    value?: string | number;
     isSecret?: boolean;
+    isNumber?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -19,7 +20,8 @@ const {
     value = '',
     onChange = () => {},
     onEnter = () => {},
-    isSecret = false
+    isSecret = false,
+    isNumber = false
 } = props;
 
 const rValue = computed(() => props.value);
@@ -30,11 +32,17 @@ const rValue = computed(() => props.value);
         <slot name="label"></slot>
         <div class="field__container">
             <input 
-                @input="(input) => {if(input.target) onChange((input.target as HTMLInputElement).value)}"
-                @keyup.enter="(input) => {if(input.target) onEnter((input.target as HTMLInputElement).value)}"
+                @input="(input) => {
+                    if(input.target)
+                        onChange((input.target as HTMLInputElement).value)
+                }"
+                @keyup.enter="(input) => {
+                    if(input.target)
+                        onEnter((input.target as HTMLInputElement).value)
+                }"
                 class="field__input" 
                 :placeholder="placeholder" 
-                :type="isSecret ? 'password' : 'text'" 
+                :type="isNumber ? 'number' : (isSecret ? 'password' : 'text')" 
                 :disabled="disabled"
                 :value="rValue"
             />
