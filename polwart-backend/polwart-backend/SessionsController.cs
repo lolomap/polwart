@@ -57,10 +57,13 @@ public class SessionsController
 		_sessionsPerConnections.Remove(connectionId);
 	}
 
-	public bool Patch(PatchRequest request)
+	public bool Patch(PatchRequest request, int userId)
 	{
 		if (!_sessionsPerMap.TryGetValue(request.MapId, out Session? session))
 			return false; //TODO: Response error (missing session)
+
+		if (!(session.MapInfo.Editors ?? []).Contains(userId))
+			return false; //TODO: Response error (unauthorized)
 		
 		session.Patch(request);
 

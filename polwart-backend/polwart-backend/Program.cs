@@ -1,7 +1,14 @@
 #define VERBOSE_RESPONSES
 #undef VERBOSE_RESPONSES
 
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text.Json;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using polwart_backend;
 using polwart_backend.Entities;
 using polwart_backend.Hubs;
@@ -10,8 +17,45 @@ using polwart_backend.Requests;
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+	options.AddSecurityDefinition("Bearer", new()
+	{
+		Name = "Authorization",
+		In = ParameterLocation.Header,
+		Type = SecuritySchemeType.Http,
+		Scheme = "Bearer"
+	});
+	options.AddSecurityRequirement(new()
+	{
+		{
+			new()
+			{
+				Reference = new()
+				{
+					Type = ReferenceType.SecurityScheme,
+					Id = "Bearer"
+				}
+			},
+			Array.Empty<string>()
+		}
+	});
+});
 builder.Services.AddSignalR();
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+	.AddJwtBearer(options =>
+	{
+		options.TokenValidationParameters = new TokenValidationParameters
+		{
+			ValidateIssuer = true,
+			ValidIssuer = AuthOptions.ISSUER,
+			ValidateAudience = true,
+			ValidAudience = AuthOptions.AUDIENCE,
+			ValidateLifetime = true,
+			IssuerSigningKey = AuthOptions.GetSymmetricSecurityKey(),
+			ValidateIssuerSigningKey = true,
+		};
+	});
 
 builder.Services.AddCors(options =>
 {
@@ -37,14 +81,87 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapHub<NotificationHub>("/notification");
 
-app.MapPost("/map/connect", async (ConnectRequest request) =>
+app.MapPost("/register", async (RegisterRequest request) =>
+	{
+		await using ApplicationContext db = new();
+
+		User? existedUser = await db.Users.FirstOrDefaultAsync(x => x.Login == request.Login);
+		if (existedUser != null)
+		{
+			return Results.Conflict();
+		}
+
+		User user = new()
+		{
+			Login = request.Login,
+			Password = PasswordHelper.HashPassword(request.Password)
+		};
+
+		await db.Users.AddAsync(user);
+		await db.SaveChangesAsync();
+
+		List<Claim> claims = [
+			new(JwtRegisteredClaimNames.Name, user.Login),
+			new(JwtRegisteredClaimNames.Sub, user.Id.ToString())
+		];
+		JwtSecurityToken jwt = new(
+			issuer: AuthOptions.ISSUER,
+			audience: AuthOptions.AUDIENCE,
+			claims: claims,
+			expires: DateTime.UtcNow.Add(TimeSpan.FromDays(1)),
+			signingCredentials: new(AuthOptions.GetSymmetricSecurityKey(), SecurityAlgorithms.HmacSha256));
+
+		return Results.Json(new {JWT = new JwtSecurityTokenHandler().WriteToken(jwt)},
+			contentType: "application/json", statusCode: 200);
+	})
+	.WithName("Register")
+	.WithOpenApi();
+
+app.MapPost("/login", async (LoginRequest request) =>
+	{
+		await using ApplicationContext db = new();
+
+		User? user = await db.Users.FirstOrDefaultAsync(x => x.Login == request.Login);
+		if (user == null) return Results.NotFound();
+
+		if (!PasswordHelper.VerifyHashedPassword(user.Password, request.Password))
+			return Results.Unauthorized();
+
+		List<Claim> claims = [
+			new(JwtRegisteredClaimNames.Name, user.Login),
+			new(JwtRegisteredClaimNames.Sub, user.Id.ToString())
+		];
+		JwtSecurityToken jwt = new(
+			issuer: AuthOptions.ISSUER,
+			audience: AuthOptions.AUDIENCE,
+			claims: claims,
+			expires: DateTime.UtcNow.Add(TimeSpan.FromDays(1)),
+			signingCredentials: new(AuthOptions.GetSymmetricSecurityKey(), SecurityAlgorithms.HmacSha256));
+
+		return Results.Json(new {JWT = new JwtSecurityTokenHandler().WriteToken(jwt)},
+			contentType: "application/json", statusCode: 200);
+	})
+	.WithName("Login")
+	.WithOpenApi();
+
+app.MapPost("/map/connect", async (ConnectRequest request,  HttpContext context) =>
 	{
 		Session? session = await G.SessionsController.Connect(request);
 		if (session == null)
 			return Results.NotFound();
+
+		if (!session.MapInfo.IsPublic)
+		{
+			int userId = Convert.ToInt32(
+				context.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value);
+			if (!(session.MapInfo.Editors ?? []).Contains(userId))
+				return Results.Unauthorized();
+		}
 
 		return Results.Json(
 			new
@@ -58,9 +175,11 @@ app.MapPost("/map/connect", async (ConnectRequest request) =>
 	.WithName("ConnectMap")
 	.WithOpenApi();
 
-app.MapPatch("/map/patch", (PatchRequest request) =>
+app.MapPatch("/map/patch", [Authorize] (PatchRequest request, HttpContext context) =>
 	{
-		if (!G.SessionsController.Patch(request))
+		if (!G.SessionsController.Patch(request, Convert.ToInt32(
+			    context.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value)
+		    ))
 		{
 			return Results.NotFound();
 		}
@@ -90,7 +209,7 @@ app.MapPost("/map/update", (UpdateRequest request) =>
 	.WithName("UpdateMap")
 	.WithOpenApi();
 
-app.MapPost("/map/create", async (CreateMapRequest request) =>
+app.MapPost("/map/create", [Authorize] async (CreateMapRequest request) =>
 	{
 		await using ApplicationContext db = new();
 		Map map = new()
