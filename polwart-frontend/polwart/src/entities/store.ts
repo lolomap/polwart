@@ -24,13 +24,13 @@ export const usePersistentStore = defineStore('persistent', {
     state: () => {
         const __user__: User = {
             id: -1,
-            name: 'Blank',
             login: '',
             password: ''
         };
+        const jwt = ref('');
         const user = reactive(__user__);
 
-        return { user, };
+        return { user, jwt };
     },
     persist: true
 });

@@ -1,9 +1,10 @@
 import type { SymbolType } from '@/entities/Map/Legend/symbol-type';
 import type { Map } from '@/entities/Map/map';
-import { useSessionStore } from '@/entities/store';
+import { usePersistentStore, useSessionStore } from '@/entities/store';
 import * as signalr from '@/features/signalr';
 
 let session: any;
+let persistent: any;
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
 const mediaUrl = import.meta.env.VITE_MEDIA_URL;
@@ -14,6 +15,47 @@ let LastUpdateTimestamp = 0;
 export type UpdateEvent = {layer: number, index: number, value: any, type: string};
 
 export const Events = new EventTarget();
+
+export async function Login(login: string, password: string) {
+    let res: boolean = false;
+    await fetch(backendUrl + '/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            login: login,
+            password: password
+        })
+    })
+    .then(response => response.json())
+    .then((data) => {
+        if (data.jwt)
+        {
+            usePersistentStore().jwt = data.jwt;
+            res = true;
+        }
+    });
+
+    return res;
+}
+
+export async function Register(login: string, password: string) {
+    let res: boolean = false;
+    await fetch(backendUrl + '/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            login: login,
+            password: password
+        })
+    })
+    .then(response => response.json())
+    .then((data) => {
+        if (data.jwt)
+            usePersistentStore().jwt = data.jwt;
+    });
+
+    return true;
+}
 
 export async function MediaUpload(fileName: string, file: File) {
     fetch(mediaUrl + `/${fileName}`, {
@@ -41,7 +83,10 @@ export function GetSTypeImageAddress(stype: SymbolType): string {
 export async function Create(isPublic: boolean, initialTimestampISO: string, bgFormat: string) {
     await fetch(backendUrl + '/map/create', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${persistent.jwt}`
+        },
         body: JSON.stringify(
             {
                 isPublic: isPublic,
@@ -62,13 +107,17 @@ export async function Connect(mapId: number) {
     await signalr.Init();
 
     session = useSessionStore();
+    persistent = usePersistentStore();
     MapId = mapId;
     let status: number;
     let map = null;
 
     await fetch(backendUrl + '/map/connect', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${persistent.jwt}`
+        },
         body: JSON.stringify(
             {
                 mapId: MapId
@@ -104,7 +153,10 @@ export function Patch(patches: string) {
 
     fetch(backendUrl + '/map/patch', {
         method: 'PATCH',
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${persistent.jwt}`
+        },
         body: JSON.stringify(
             {
                 'mapId': MapId,
@@ -128,7 +180,10 @@ export function Update() {
 
     fetch(backendUrl + '/map/update', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${persistent.jwt}`
+        },
         body: JSON.stringify(
             {
                 mapId: MapId,
