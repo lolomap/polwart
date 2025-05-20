@@ -209,12 +209,16 @@ app.MapPost("/map/update", (UpdateRequest request) =>
 	.WithName("UpdateMap")
 	.WithOpenApi();
 
-app.MapPost("/map/create", [Authorize] async (CreateMapRequest request) =>
+app.MapPost("/map/create", [Authorize] async (CreateMapRequest request, HttpContext context) =>
 	{
+		int userId = Convert.ToInt32(
+			context.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value);
+		
 		await using ApplicationContext db = new();
 		Map map = new()
 		{
 			IsPublic = request.IsPublic,
+			Editors = [userId],
 			BackgroundFormat = request.BackgroundFormat,
 			Content = JsonSerializer.Serialize(new
 			{
@@ -235,6 +239,33 @@ app.MapPost("/map/create", [Authorize] async (CreateMapRequest request) =>
 			contentType: "application/json", statusCode: 200);
 	})
 	.WithName("CreateMap")
+	.WithOpenApi();
+
+app.MapPost("/map/changeEditors", [Authorize] async (ChangeEditorsRequest request, HttpContext context) =>
+	{
+		Session? session = G.SessionsController.GetMapSession(request.MapId);
+		if (session == null)
+			return Results.NotFound();
+		
+		int userId = Convert.ToInt32(
+			context.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value);
+		
+		// Map creator is always first in editors list 
+		if ((session.MapInfo.Editors ?? []).FindIndex(x => x == userId) != 0)
+			return Results.Unauthorized();
+		if (request.Editors.Count < 1 || request.Editors[0] != userId)
+			return Results.BadRequest();
+			
+		await using ApplicationContext db = new();
+		Map? map = db.Maps.FirstOrDefault(x => x.Id == request.MapId);
+		if (map == null)
+			return Results.NotFound();
+
+		map.Editors = request.Editors;
+		await db.SaveChangesAsync();
+		return Results.Ok();
+	})
+	.WithName("ChangeEditorsMap")
 	.WithOpenApi();
 
 app.Run();
