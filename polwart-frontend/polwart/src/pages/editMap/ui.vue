@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, watch, onMounted } from 'vue';
 import RelationGraph, { type JsonNode, type RGEventHandler, type RGNode, type RGUserEvent } from 'relation-graph-vue3';
 import { RelationGraphComponent, type RGOptions } from 'relation-graph-vue3';
 import { Typography } from '@/shared/typography';
@@ -16,6 +16,10 @@ import { UseMouse } from '@vueuse/components';
 import { useRoute } from 'vue-router';
 import type { RelationGraphFinal } from 'relation-graph-vue3/types/types/relation-graph-models/models/RelationGraphFinal';
 import FileUpload, { type FileUploadSelectEvent } from 'primevue/fileupload';
+import { Timeline } from 'primevue';
+import { DateTimePicker } from '@/shared/datetimepicker';
+import type { Layer } from '@/entities/Map/layer';
+
 
 const isOpenStypeEditor = ref(false);
 const currentSType = ref<SymbolType>({
@@ -38,7 +42,10 @@ const blockModalClose = ref(false);
 const doesExists = ref(false);
 const isOpenTooltip = ref(false);
 
+const isOpenLayerEditor = ref(false);
 const currentLayer = ref(0);
+const tempTimestampISO = ref('');
+const timelineZoom = ref(0);
 
 let bgUrl = '';
 const iconsRefresherKey = ref(0);
@@ -73,15 +80,13 @@ if (mapId > -1)
     .then((map: any) => {
         bgUrl = api.GetMapImageAddress() + '.' + map.backgroundFormat;
 
+        currentLayer.value = (session.mapData?.layers.length ?? 1) - 1;
         // Load every symbol on layer
-        for (const [index, symbol] of session.mapData?.layers[currentLayer.value].content.entries() ?? []) {
-            OnLoadMapSymbol({
-                layer: currentLayer.value,
-                index: index,
-                value: symbol,
-                type: 'add'
-            });
-        };
+        OnLoadMapAllSymbols();
+        watch(currentLayer, async (newLayer, oldLayer) => {
+            graphInstance?.clearGraph();
+            OnLoadMapAllSymbols();
+        });
 
         // Subscribe GUI on layer changes
         api.Events.addEventListener('symbolUpdated', (e) => {OnLoadMapSymbol((e as CustomEvent).detail)});
@@ -113,6 +118,17 @@ async function ShowGraph() {
         await graphInstance.moveToCenter();
         await graphInstance.zoomToFit();
     }
+}
+
+function OnLoadMapAllSymbols() {
+    for (const [index, symbol] of session.mapData?.layers[currentLayer.value].content.entries() ?? []) {
+        OnLoadMapSymbol({
+            layer: currentLayer.value,
+            index: index,
+            value: symbol,
+            type: 'add'
+        });
+    };
 }
 
 function OnLoadMapSymbol(event: api.UpdateEvent) {
@@ -218,6 +234,11 @@ function GraphDragEndNode(node: RGNode, event: RGUserEvent) {
     symbol.x = node.x;
     symbol.y = node.y;
     RequestUpdateSymbolPos(currentLayer.value, symbol);
+}
+
+function RequestCreateLayer() {
+    const patch = map.AddLayer(session.mapData!, tempTimestampISO.value, session.mapData?.layers[currentLayer.value].content ?? []);
+    api.Patch(patch);
 }
 
 function RequestCreateSType(stype: SymbolType) {
@@ -474,17 +495,17 @@ function CreateSymbol(stype: SymbolType) {
                         :onChange="(text: string) => {currentSymbol.value[property.name] = text;}"
                         :value="currentSymbol.value[property.name]"
                     />
-                    <Field v-if="!isReadSymbolEditor && property?.type == 'integer'"
+                    <Field v-else-if="!isReadSymbolEditor && property?.type == 'integer'"
                         :isNumber="true"
                         :onChange="(text: string) => {currentSymbol.value[property.name] = Number.parseInt(text);}"
                         :value="currentSymbol.value[property.name]"
                     />
-                    <Field v-if="!isReadSymbolEditor && property?.type == 'float'"
+                    <Field v-else-if="!isReadSymbolEditor && property?.type == 'float'"
                         :isNumber="true"
                         :onChange="(text: string) => {currentSymbol.value[property.name] = Number.parseFloat(text);}"
                         :value="currentSymbol.value[property.name]"
                     />
-                    <Checkbox v-if="!isReadSymbolEditor && property?.type == 'boolean'"
+                    <Checkbox v-else-if="!isReadSymbolEditor && property?.type == 'boolean'"
                         :onChange="(checked: boolean) => {currentSymbol.value[property.name] = checked;}"
                         :value="currentSymbol.value[property.name]"
                     />
@@ -501,6 +522,20 @@ function CreateSymbol(stype: SymbolType) {
                 ОК
             </Button>
         </div>
+    </Modal>
+
+    <Modal :is-open="isOpenLayerEditor">
+        <Typography tag="h4">Позиция фиксации на таймлайне:</Typography>
+        <DateTimePicker :onChange="(value: string) => {tempTimestampISO = value;}" />
+        <Button
+            @click="() => {
+                RequestCreateLayer();
+                isOpenLayerEditor = false;
+            }"
+            color="good"
+        >
+            ОК
+        </Button>
     </Modal>
 
     <UseMouse v-slot="{ x, y }">
@@ -580,6 +615,116 @@ function CreateSymbol(stype: SymbolType) {
         </Button>
     </div>
 
+    <div class="timeline-block">
+        <div class="timeline-header">
+            <div class="timeline-options">
+                <Button
+                    :color="timelineZoom != 0 ? 'normal' : 'default'"
+                    @click="() => {
+                        timelineZoom = 0;
+                    }"
+                >
+                    Год
+                </Button>
+                <Button
+                    :color="timelineZoom != 1 ? 'normal' : 'default'"
+                    @click="() => {
+                        timelineZoom = 1;
+                    }"
+                >
+                    Месяц
+                </Button>
+                <Button
+                    :color="timelineZoom != 2 ? 'normal' : 'default'"
+                    @click="() => {
+                        timelineZoom = 2;
+                    }"
+                >
+                    День
+                </Button>
+                <Button
+                    :color="timelineZoom != 3 ? 'normal' : 'default'"
+                    @click="() => {
+                        timelineZoom = 3;
+                    }"
+                >
+                    Час
+                </Button>
+                <Button
+                    :color="timelineZoom != 4 ? 'normal' : 'default'"
+                    @click="() => {
+                        timelineZoom = 4;
+                    }"
+                >
+                    Минута
+                </Button>
+
+                <Button
+                    class="timeline-add-button"
+                    color="good"
+                    @click="() => {
+                        isOpenLayerEditor = true;
+                    }"
+                >
+                    +
+                </Button>
+            </div>
+            <Typography class="timeline-current" tag="p">
+                {{ new Date(session.mapData?.layers[currentLayer].timestampISO ?? '').toString() }}
+            </Typography>
+        </div>
+        <div class="timeline-content">
+            <Timeline
+                :value="session.mapData?.layers.sort((a, b) => {
+                    const dA = new Date(a.timestampISO);
+                    const dB = new Date(b.timestampISO);
+
+                    if (dA < dB)
+                        return -1;
+                    if (dA > dB)
+                        return 1;
+
+                    return 0;
+                })"
+                layout="horizontal"
+                align="bottom"
+            >
+                <template #content="slotProps">
+                    <Typography tag="p" v-if="timelineZoom == 0">
+                        {{ new Date((slotProps.item as Layer).timestampISO).getFullYear() }}
+                    </Typography>
+                    <Typography tag="p" v-else-if="timelineZoom == 1">
+                        {{ new Date((slotProps.item as Layer).timestampISO).getMonth() }}
+                    </Typography>
+                    <Typography tag="p" v-else-if="timelineZoom == 2">
+                        {{ new Date((slotProps.item as Layer).timestampISO).getDate() }}
+                    </Typography>
+                    <Typography tag="p" v-else-if="timelineZoom == 3">
+                        {{ new Date((slotProps.item as Layer).timestampISO).getHours() }}
+                    </Typography>
+                    <Typography tag="p" v-else-if="timelineZoom == 4">
+                        {{ new Date((slotProps.item as Layer).timestampISO).getMinutes() }}
+                    </Typography>
+                </template>
+                <template #marker="slotMarker">
+                    <div>
+                        <Button
+                            class="timeline-marker"
+                            :color="(slotMarker.item as Layer).timestampISO == session.mapData?.layers[currentLayer].timestampISO
+                                ? 'great' : 'default'"
+                            @click="() => {
+                                currentLayer = session.mapData?.layers.findIndex(
+                                    x => x.timestampISO == (slotMarker.item as Layer).timestampISO
+                                ) ?? 0;
+                            }"
+                        >
+                        </Button>
+                    </div>
+                </template>
+            </Timeline>
+        </div>
+    </div>
+
     <div class="root-graph">
         <RelationGraph ref="graphRef"
             :options="graphOptions" 
@@ -616,9 +761,69 @@ function CreateSymbol(stype: SymbolType) {
 .symbol-icon {
     pointer-events: none;
 }
+
+
+:root {
+    --p-content-border-color: black;
+    --p-timeline-event-connector-color: var(--p-content-border-color);
+    --p-timeline-event-connector-size: 2px;
+}
 </style>
 
 <style scoped>
+.timeline-block {
+    z-index: 10;
+    position: absolute;
+    
+    border: solid;
+    border-width: 2px;
+    background-color: white;
+    border-radius: 32px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    top: 98%;
+    transform: translateY(-100%);
+    width: 100%;
+    padding: 16px;
+}
+
+.timeline-header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+.timeline-current {
+    margin-left: auto;
+}
+
+.timeline-add-button {
+    width: fit-content;
+}
+
+.timeline-marker {
+    border-radius: 35px;
+    height: 32px;
+    width: 32px;
+}
+
+.timeline-options {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    width: fit-content;
+}
+
+.timeline-content {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    width: 100%;
+}
+
 .stype-icon {
     width: 42px;
     height: 42px;

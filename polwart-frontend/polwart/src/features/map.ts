@@ -1,9 +1,29 @@
 import type { SymbolType } from "@/entities/Map/Legend/symbol-type";
 import type { Symbol } from '@/entities/Map/Legend/symbol';
 import type { Map } from '@/entities/Map/map';
-import * as jsonpatch from 'jsonpatch';
+import type { Layer } from "@/entities/Map/layer";
 
 // --------- Patches ---------
+
+export function AddLayer(map: Map, timestampISO: string, content: Symbol[]): string {
+    const layer: Layer = {
+        timestampISO: timestampISO,
+        content: content
+    };
+    
+    const timestamp = new Date(timestampISO);
+    const index: number = map.layers.findIndex(x => (new Date(x.timestampISO)) <= timestamp);
+
+    return `
+    [
+        {
+            "op": "add",
+            "path": "/layers/-",
+            "value": ${JSON.stringify(layer)}
+        }
+    ]
+    `;
+}
 
 export function AddSymbolType(map: Map, stype: SymbolType): string {
     //map.legend.push(stype);

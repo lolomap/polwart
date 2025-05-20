@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { Typography } from '@/shared/typography/';
+import { computed } from 'vue';
 
 interface Props {
     color?: 'default' | 'alert' | 'normal' | 'good' | 'great';
@@ -16,11 +17,13 @@ const {
     disabled = false
 } = props;
 
-const classes = ['button', `size_${size}`, `decoration_${decoration}`, `color_${color}`, `disabled_${disabled}`];
+const rColor = computed(() => props.color);
+const rDisabled = computed(() => props.disabled);
 </script>
 
 <template>
-    <button :class="classes" :disabled="disabled">
+    <button :class="['button', `size_${size}`, `decoration_${decoration}`,
+    `color_${rColor ?? 'default'}`, `disabled_${rDisabled ?? false}`]" :disabled="rDisabled">
         <slot name="icon"></slot>
         <Typography class="button__text" tag="p" size="s"><slot></slot></Typography>
     </button>
