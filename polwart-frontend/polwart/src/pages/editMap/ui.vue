@@ -47,7 +47,7 @@ const currentLayer = ref(0);
 const tempTimestampISO = ref('');
 const timelineZoom = ref(0);
 
-let bgUrl = '';
+let bgUrl = ref('');
 const iconsRefresherKey = ref(0);
 const forceRerenderIcons = () => {
     iconsRefresherKey.value += 1;
@@ -78,7 +78,7 @@ if (mapId > -1)
 {
     api.Connect(mapId)
     .then((map: any) => {
-        bgUrl = api.GetMapImageAddress() + '.' + map.backgroundFormat;
+        bgUrl.value = api.GetMapImageAddress() + '.' + map.backgroundFormat;
 
         currentLayer.value = (session.mapData?.layers.length ?? 1) - 1;
         // Load every symbol on layer
