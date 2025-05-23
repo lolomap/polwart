@@ -85,7 +85,7 @@ export async function Create(isPublic: boolean, initialTimestampISO: string, bgF
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${persistent.jwt}`
+            'Authorization': `Bearer ${usePersistentStore().jwt}`
         },
         body: JSON.stringify(
             {

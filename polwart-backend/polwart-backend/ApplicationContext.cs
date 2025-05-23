@@ -8,7 +8,7 @@ public sealed class ApplicationContext : DbContext
 	public DbSet<Map> Maps => Set<Map>();
 	public DbSet<User> Users => Set<User>();
 	
-	public ApplicationContext() => Database.Migrate();
+	public ApplicationContext() => Database.EnsureCreated();
 
 	public ApplicationContext(DbContextOptions<ApplicationContext> options) : base(options)
 	{

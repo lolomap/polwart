@@ -10,11 +10,12 @@ public class SessionsController
 	private readonly Dictionary<int, Session> _sessionsPerMap = [];
 	private readonly Dictionary<string, Session> _sessionsPerConnections = [];
 
-	private Session CreateSession(ConnectRequest request, Map map)
+	private Session? CreateSession(ConnectRequest request, Map map)
 	{
 		Session session = new(map);
 		session.Close += CloseSession;
-		_sessionsPerMap.Add(request.MapId, session);
+		if (!_sessionsPerMap.TryAdd(request.MapId, session))
+			return default;
 		
 		//TODO: use logging utilities
 		Console.WriteLine($"OPEN SESSION FOR {request.MapId}");

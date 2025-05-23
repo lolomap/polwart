@@ -1,5 +1,4 @@
-﻿using System.Net;
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Nodes;
 using Json.Patch;
 using Microsoft.AspNetCore.SignalR;
@@ -20,8 +19,17 @@ public class Session(Map mapInfo)
 
 	public void Patch(PatchRequest request)
 	{
-		JsonPatch? data = JsonSerializer.Deserialize<JsonPatch>(request.Patch);
-		if (data == null) return;
+		JsonPatch? data;
+		try
+		{
+			data = JsonSerializer.Deserialize<JsonPatch>(request.Patch);
+			if (data == null) return;
+		}
+		catch (JsonException)
+		{
+			Console.WriteLine("Invalid patch");
+			return;
+		}
 
 		Revision revision = new(this, data, request.Timestamp);
 		_revisions.TryAdd(request.Timestamp, revision);
