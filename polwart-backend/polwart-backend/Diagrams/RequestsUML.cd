@@ -1,0 +1,53 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1">
+  <Class Name="polwart_backend.Requests.ChangeEditorsRequest">
+    <Position X="5.25" Y="1.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAACAAAAAAAAAAAACAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Requests\ChangeEditorsRequest.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="polwart_backend.Requests.ConnectRequest">
+    <Position X="7" Y="1.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Requests\ConnectRequest.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="polwart_backend.Requests.CreateMapRequest">
+    <Position X="8.75" Y="1.25" Width="1.75" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAgAAAAAAABAA=</HashCode>
+      <FileName>Requests\CreateMapRequest.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="polwart_backend.Requests.LoginRequest">
+    <Position X="5.25" Y="3" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAQAAAAAAA=</HashCode>
+      <FileName>Requests\LoginRequest.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="polwart_backend.Requests.PatchRequest">
+    <Position X="7" Y="3" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAACAAAAAAACAAAAAAAAQAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Requests\PatchRequest.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="polwart_backend.Requests.RegisterRequest">
+    <Position X="8.75" Y="3" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAQAAAAAAA=</HashCode>
+      <FileName>Requests\RegisterRequest.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="polwart_backend.Requests.UpdateRequest">
+    <Position X="5.25" Y="5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAEACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Requests\UpdateRequest.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Font Name="Segoe UI" Size="9" />
+</ClassDiagram>
