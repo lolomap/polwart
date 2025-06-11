@@ -13,6 +13,8 @@ export type SymbolType = {
     name: string;
 
     iconFormat: string;
+    isArea: boolean;
+    areaColor: string;
     
     properties: SymbolProperty[];
 };

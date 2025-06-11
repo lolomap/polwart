@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue';
-import RelationGraph, { type JsonNode, type RGEventHandler, type RGNode, type RGUserEvent } from 'relation-graph-vue3';
+import RelationGraph, { type JsonLine, type JsonNode, type RGEventHandler, type RGNode, type RGUserEvent } from 'relation-graph-vue3';
 import { RelationGraphComponent, type RGOptions } from 'relation-graph-vue3';
 import { Typography } from '@/shared/typography';
 import { useSessionStore } from '@/entities/store';
@@ -26,15 +26,18 @@ const currentSType = ref<SymbolType>({
     id: 0,
     name: '',
     properties: [],
-    iconFormat: 'png'
+    iconFormat: 'png',
+    isArea: false,
+    areaColor: '#ff0000'
 });
 const isOpenSymbolEditor = ref(false);
 const isReadSymbolEditor = ref(true);
+const isDrawArea = ref(false);
 const currentSymbol = ref<Symbol>({
     id: 0,
     type: 0,
     title: '',
-    value: undefined,
+    value: {},
     x: 0,
     y: 0
 });
@@ -48,6 +51,8 @@ const tempTimestampISO = ref('');
 const timelineZoom = ref(0);
 
 let bgUrl = ref('');
+const bgWidth = ref(0);
+const bgHeight = ref(0);
 const iconsRefresherKey = ref(0);
 const forceRerenderIcons = () => {
     iconsRefresherKey.value += 1;
@@ -132,6 +137,7 @@ function OnLoadMapAllSymbols() {
 }
 
 function OnLoadMapSymbol(event: api.UpdateEvent) {
+    if (currentLayer.value != event.layer) return;
     switch (event.type) {
         case 'x':
         case 'y':
@@ -148,9 +154,35 @@ function OnLoadMapSymbol(event: api.UpdateEvent) {
 
             break;
         }
+        case 'connection':
+        {
+            console.log('connection');
+            const symbol: Symbol | undefined = session.mapData?.layers[event.layer].content[event.index];
+            if (!symbol) return;
+            const symbolType = map.GetSymbolType(session.mapData!, symbol.type);
+            if (!symbolType) return;
+            const node: RGNode | undefined = graphInstance?.getNodeById(symbol.id.toString());
+            if (!node) return;
+
+            const line: JsonLine[] = [
+                {
+                    from: symbol.value['#connection'].toString(),
+                    to: symbol.id.toString(),
+                    color: symbolType.areaColor,
+                    isHideArrow: true
+                }
+            ];
+
+            // Remove old connection before draw new one
+            graphInstance?.removeLinkByTwoNode(symbol.value['#connection'].toString(), symbol.id.toString());
+            
+            graphInstance?.addLines(line);
+
+            break;
+        }
         case 'add':
         {    
-            let symbol: Symbol | undefined = session.mapData?.layers[event.layer].content[event.index];
+            const symbol: Symbol | undefined = session.mapData?.layers[event.layer].content[event.index];
             if (!symbol) return;
 
             GraphAddNode(symbol);
@@ -173,11 +205,53 @@ function GetSymbolImageAdress(id: number): string {
     return api.GetSTypeImageAddress(symbolType);
 }
 
+function GraphGetPolygon(root: RGNode): string {
+    const points = [];
+    
+    points.push([root.x + bgWidth.value / 2 + 8, root.y + bgHeight.value / 2 + 8]);
+    let node = root.targetTo[0];
+
+    while (node && node.id != root.id) {
+        points.push([node.x + bgWidth.value / 2 + 8, node.y + bgHeight.value / 2 + 8]);
+
+        node = node.targetTo[0];
+    }
+
+    let res = '';
+    points.forEach(x => {
+        res += `${x[0]}px ${x[1]}px, `
+    });
+
+    res = res.substring(0, res.length - 2);
+    return `polygon(${res})`;
+}
+
+function GraphClickCanvas($event: RGUserEvent) {
+    if (!isDrawArea.value) return;
+    
+    let x = ($event as MouseEvent).offsetX - bgWidth.value / 2;
+    let y = ($event as MouseEvent).offsetY - bgHeight.value / 2;
+
+    CreateSymbol(currentSType.value, x, y, currentSymbol?.value?.id ?? -1);
+}
+
 function GraphClickNode(node: RGNode, event: RGUserEvent) {
     const symbol = map.GetSymbol(session.mapData!, currentLayer.value, Number(node.id));
     if (!symbol) return;
     const symbolType = map.GetSymbolType(session.mapData!, symbol.type);
     if (!symbolType) return;
+
+    console.log(currentSymbol.value);
+    console.log(symbol);
+
+    if (isDrawArea.value)
+    {
+        symbol.value['#connection'] = currentSymbol?.value?.id ?? -1;
+        isDrawArea.value = false;
+        RequestUpdateSymbolConnection(currentLayer.value, symbol);
+
+        return;
+    }
 
     currentSymbol.value = symbol;
     currentSType.value = symbolType;
@@ -185,6 +259,8 @@ function GraphClickNode(node: RGNode, event: RGUserEvent) {
 }
 
 function GraphNodeOver(node: RGNode, $event: any) {
+    if (isDrawArea) return;
+
     const symbol = map.GetSymbol(session.mapData!, currentLayer.value, Number(node.id));
     if (!symbol) return;
     const symbolType = map.GetSymbolType(session.mapData!, symbol.type);
@@ -209,14 +285,40 @@ async function GraphAddNode(symbol: Symbol) {
             {
                 id: symbol.id.toString(),
                 //text: symbol.title,
-                width: 20,
-                height: 20,
+                width: 1,//symbolType.isArea ? 15 : 50,
+                height: 1,//symbolType.isArea ? 15 : 50,
+                color: 'transparent',
+                borderColor: 'transparent',
                 fixed: true,
                 x: symbol.x,
                 y: symbol.y,
+                data: {
+                    isArea: symbolType.isArea,
+                    color: symbolType.areaColor,
+                    isRoot: false
+                }
             }
         ];
+
         await graphInstance.addNodes(node);
+
+        if (symbol.value['#connection'] && symbol.value['#connection'] != -1)
+        {
+            const line: JsonLine[] = [
+                {
+                    from: symbol.value['#connection'].toString(),
+                    to: symbol.id.toString(),
+                    color: symbolType.areaColor,
+                    isHideArrow: true
+                }
+            ];
+            graphInstance.addLines(line);
+            
+            // Mark area's root symbol
+            const prevNode = graphInstance.getNodeById(symbol.value['#connection'].toString());
+            if (prevNode.targetFrom.length == 0 && prevNode.data)
+                prevNode.data.isRoot = true
+        }
     }
 }
 
@@ -295,8 +397,17 @@ function RequestUpdateSymbolPos(layer: number, s: Symbol) {
     const patch = map.UpdateSymbolPos(session.mapData, layer, s);
     api.Patch(patch);
 }
+function RequestUpdateSymbolConnection(layer: number, s: Symbol) {
+    if (!session.mapData) {
+        console.error('Map is not instantiated');
+        return;
+    }
 
-function CreateSymbol(stype: SymbolType) {
+    const patch = map.UpdateSymbolConnection(session.mapData, layer, s);
+    api.Patch(patch);
+}
+
+function CreateSymbol(stype: SymbolType, x: number = 0, y: number = 0, connection: number = -1) {
     if (!session.mapData) {
         console.error('Map is not instantiated');
         return;
@@ -321,10 +432,13 @@ function CreateSymbol(stype: SymbolType) {
         initValue.set(property.name, v);
     });
 
-    const symbol: Symbol = {id: Date.now(), type: stype.id, title: stype.name, value: Object.fromEntries(initValue), x: 0, y: 0};
+    initValue.set('#connection', connection);
+
+    const symbol: Symbol = {id: Date.now(), type: stype.id, title: stype.name, value: Object.fromEntries(initValue), x: x, y: y};
     const patch = map.AddSymbol(session.mapData, currentLayer.value, symbol);
     //GraphAddNode(symbol);
     api.Patch(patch);
+    currentSymbol.value = symbol;
 }
 
 </script>
@@ -333,7 +447,17 @@ function CreateSymbol(stype: SymbolType) {
     <Modal :is-open="isOpenStypeEditor">
         <div class="modal-stype-editor">
             <div class="stype-editor-header">
+                <input
+                    v-if="currentSType.isArea"
+                    type="color"
+                    :value="currentSType?.areaColor"
+                    @input="(input) => {
+                        if(input.target)
+                            currentSType.areaColor = (input.target as HTMLInputElement).value;
+                    }"
+                />
                 <FileUpload
+                    v-else
                     accept="image/*"
                     :multiple="false"
                     :maxFileSize="15 * 1000000"
@@ -483,29 +607,29 @@ function CreateSymbol(stype: SymbolType) {
                     <Typography tag="p">{{ property.name }}:</Typography>
 
                     <Typography tag="p"
-                        v-if="isReadSymbolEditor && property?.type != 'boolean'">
+                        v-if="(isReadSymbolEditor || !property.isEditable) && property?.type != 'boolean'">
                         {{ currentSymbol.value[property.name] }}
                     </Typography>
                     <Typography tag="p"
-                        v-if="isReadSymbolEditor && property?.type == 'boolean'">
+                        v-if="(isReadSymbolEditor || !property.isEditable) && property?.type == 'boolean'">
                         {{ currentSymbol.value[property.name] ? '✅' : '❌' }}
                     </Typography>
                     <!-- Different inputs depending on property.type. They should be disabled in non-edit mode -->
-                    <Field v-if="!isReadSymbolEditor && property?.type == 'string'"
+                    <Field v-if="(!isReadSymbolEditor && property.isEditable) && property?.type == 'string'"
                         :onChange="(text: string) => {currentSymbol.value[property.name] = text;}"
                         :value="currentSymbol.value[property.name]"
                     />
-                    <Field v-else-if="!isReadSymbolEditor && property?.type == 'integer'"
+                    <Field v-else-if="(!isReadSymbolEditor && property.isEditable) && property?.type == 'integer'"
                         :isNumber="true"
                         :onChange="(text: string) => {currentSymbol.value[property.name] = Number.parseInt(text);}"
                         :value="currentSymbol.value[property.name]"
                     />
-                    <Field v-else-if="!isReadSymbolEditor && property?.type == 'float'"
+                    <Field v-else-if="(!isReadSymbolEditor && property.isEditable) && property?.type == 'float'"
                         :isNumber="true"
                         :onChange="(text: string) => {currentSymbol.value[property.name] = Number.parseFloat(text);}"
                         :value="currentSymbol.value[property.name]"
                     />
-                    <Checkbox v-else-if="!isReadSymbolEditor && property?.type == 'boolean'"
+                    <Checkbox v-else-if="(!isReadSymbolEditor && property.isEditable) && property?.type == 'boolean'"
                         :onChange="(checked: boolean) => {currentSymbol.value[property.name] = checked;}"
                         :value="currentSymbol.value[property.name]"
                     />
@@ -570,6 +694,7 @@ function CreateSymbol(stype: SymbolType) {
             <div class="legend-stype-row" v-for="stype in session.mapData?.legend" :key="stype.id + iconsRefresherKey">
                 <div class="legend-stype-name">
                     <img class="stype-icon"
+                        v-if="!stype.isArea"
                         :src="api.GetSTypeImageAddress(stype)"
                         @error="($event.target! as HTMLImageElement).src='/add_photo.svg'"
                         @click="() => {
@@ -578,15 +703,33 @@ function CreateSymbol(stype: SymbolType) {
                             isOpenStypeEditor = true;
                         }"
                     />
+                    <div
+                        v-else
+                        class="stype-color"
+                        :style="{backgroundColor: stype.areaColor}"
+                    >
+                    </div>
+
                     <Typography tag="p">{{ stype.name }}</Typography>
                 </div>
                 <div class="legend-stype-tools">
                     <Button
+                        v-if="!stype.isArea"
                         @click="() => {
                             CreateSymbol(stype);
                         }"
                         color="good"
                     >+</Button>
+                    <Button
+                        v-else
+                        @click="() => {
+                            isDrawArea = true;
+                            currentSymbol = {...currentSymbol, id: -1};
+                            currentSType = stype;
+                        }"
+                        color="good"
+                    >D</Button>
+
                     <Button
                         @click="() => {
                             currentSType = stype;
@@ -607,11 +750,20 @@ function CreateSymbol(stype: SymbolType) {
         <Button
             @click="() => {
                 doesExists = false;
-                currentSType = {id: Date.now(), name: '', properties: [], iconFormat: 'png'};
+                currentSType = {id: Date.now(), name: '', properties: [], iconFormat: 'png', isArea: false, areaColor: '#ff0000'};
                 isOpenStypeEditor = true;
             }"
         >
-            Добавить новое обозначение
+            Добавить обозначение (объект)
+        </Button>
+        <Button
+            @click="() => {
+                doesExists = false;
+                currentSType = {id: Date.now(), name: '', properties: [], iconFormat: 'png', isArea: true, areaColor: '#ff0000'};
+                isOpenStypeEditor = true;
+            }"
+        >
+            Добавить обозначение (область)
         </Button>
     </div>
 
@@ -725,28 +877,62 @@ function CreateSymbol(stype: SymbolType) {
         </div>
     </div>
 
+
     <div class="root-graph">
         <RelationGraph ref="graphRef"
             :options="graphOptions" 
             @node-click="GraphClickNode"
             @node-drag-end="GraphDragEndNode"
+            @canvas-click="GraphClickCanvas"
         >
             <template #node="{node}">
                 <div
+                    class="symbol-node"
                     @mouseover="GraphNodeOver(node, $event)"
                     @mouseout="GraphNodeOut(node, $event)"
                 >
-                    <img :src="`${GetSymbolImageAdress(Number((node as RGNode).id))}`"
+                    <img
+                        v-if="!(node as RGNode).data?.isArea"
+                        :src="`${GetSymbolImageAdress(Number((node as RGNode).id))}`"
                         class="symbol-icon"
                         :key="(node as RGNode).id + iconsRefresherKey"
                         :width="`${(node as RGNode).width}px`"
                         :height="`${(node as RGNode).height}px`"
                     />
+                    <div
+                        v-else
+                        :style="{backgroundColor: (node as RGNode).data?.color}"
+                        class="symbol-color"
+                    >
+                    </div>
                 </div>
             </template>
             <template #canvas-plug>
                 <div class="canvas">
-                    <img class="map-image" :src=bgUrl />
+                    <img class="map-image" :src=bgUrl
+                        @load="($event) => {
+                            bgWidth = ($event.target! as HTMLImageElement).width;
+                            bgHeight = ($event.target! as HTMLImageElement).height;
+                            console.log(bgWidth);
+                        }"
+                    />
+                    <div v-if="isDrawArea" class="map-areas-canvas"
+                        :style="{width: bgWidth + 'px', height: bgHeight + 'px'}"
+                    >
+
+                    </div>
+
+                    <div v-for="node in graphInstance?.getNodes().filter(x => x.data?.isRoot)"
+                        class="symbol-area"
+                        :style="{
+                            backgroundColor: (node as RGNode).data?.color,
+                            width: bgWidth + 'px',
+                            height: bgHeight + 'px',
+                            clipPath: GraphGetPolygon(node)
+                        }"    
+                    >
+                        
+                    </div>
                 </div>
             </template>
         </RelationGraph>
@@ -758,10 +944,24 @@ function CreateSymbol(stype: SymbolType) {
     border: none !important;
 }
 
+.symbol-node {
+    transform: translate(-50%, -50%);
+    width: fit-content;
+    height: fit-content;
+}
+
 .symbol-icon {
+    width: 50px;
+    height: 50px;
     pointer-events: none;
 }
 
+.symbol-color {
+    width: 15px;
+    height: 15px;
+    border-radius: 15px;
+    pointer-events: none;
+}
 
 :root {
     --p-content-border-color: black;
@@ -828,6 +1028,12 @@ function CreateSymbol(stype: SymbolType) {
     width: 42px;
     height: 42px;
     cursor: pointer;
+}
+
+.stype-color {
+    width: 42px;
+    height: 42px;
+    border-radius: 42px;
 }
 
 .modal-stype-editor, .modal-symbol-editor, .node-tooltip {
@@ -917,6 +1123,7 @@ function CreateSymbol(stype: SymbolType) {
 .legend-stype-name {
     display: flex;
     align-items: center;
+    gap: 8px;
 }
 
 .root-graph {
@@ -929,9 +1136,22 @@ function CreateSymbol(stype: SymbolType) {
 
 .map-image {
     position: absolute;
-    top: 50%;
-    left: 50%;
     transform: translateY(-50%) translateX(-50%);
     pointer-events: none;
 }
+
+.map-areas-canvas {
+    position: absolute;
+    background-color: rgb(104, 104, 104);
+    opacity: 0.5;
+    transform: translateY(-50%) translateX(-50%);
+}
+
+.symbol-area {
+    position: absolute;
+    transform: translateY(-50%) translateX(-50%);
+    opacity: 0.3;
+    pointer-events: none;
+}
+
 </style>

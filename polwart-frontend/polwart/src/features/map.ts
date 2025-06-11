@@ -155,6 +155,28 @@ export function UpdateSymbolPos(map: Map, layer: number, symbol: Symbol) {
     `;
 }
 
+export function UpdateSymbolConnection(map: Map, layer: number, symbol: Symbol) {
+    if (map.layers.length < layer || layer < 0) {
+        console.error('Cannot update Symbol that not presented in Content');
+        return '';
+    }
+    const index = map.layers[layer].content.findIndex(el => el.id == symbol.id);
+    if (index < 0 || map.layers[layer].content.length <= index) {
+        console.error('Cannot update Symbol that not presented in Content');
+        return '';
+    }
+
+    return `
+    [
+        {
+            "op": "replace",
+            "path": "/layers/${layer}/content/${index}/value/#connection",
+            "value": ${symbol.value['#connection']}
+        }
+    ]
+    `;
+}
+
 
 // ------------- Getters ---------
 

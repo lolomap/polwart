@@ -216,9 +216,9 @@ export function Update() {
                     if (patch.op == 'remove') {
                         event.type = patch.op;
                         event.value = (session.mapData as Map).layers[event.layer].content[event.index].id;
-                    }
 
-                    Events.dispatchEvent(new CustomEvent('symbolUpdated', {detail: event}));
+                        Events.dispatchEvent(new CustomEvent('symbolUpdated', {detail: event}));
+                    }
                 }
             });
 
@@ -243,10 +243,14 @@ export function Update() {
                     else if (path[path.length - 1] == 'y') {
                         event.type = 'y';
                     }
-                    else if (patch.op == 'add') {
+                    else if (path[path.length - 1] == '#connection') {
+                        event.type = 'connection';
+                    }
+                    else if (patch.op == 'add' && path[2] != '-') {
                         event.type = patch.op;
                         event.index = (session.mapData as Map).layers[event.layer].content.length - 1;
                     }
+                    else return;
 
                     Events.dispatchEvent(new CustomEvent('symbolUpdated', {detail: event}));
                 }
