@@ -10,6 +10,7 @@ export default defineConfig({
     vue(),
     vueJsx(),
   ],
+  base: '/polwart/',
   define: {
     __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: 'false'
   },
