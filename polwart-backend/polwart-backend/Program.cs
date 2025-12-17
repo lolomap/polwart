@@ -86,6 +86,10 @@ app.UseAuthorization();
 
 app.MapHub<NotificationHub>("/notification");
 
+app.MapGet("/testAccess", [Authorize]() => Task.FromResult(Results.Ok()))
+	.WithName("TestAccess")
+	.WithOpenApi();
+
 app.MapPost("/register", async (RegisterRequest request) =>
 	{
 		await using ApplicationContext db = new();

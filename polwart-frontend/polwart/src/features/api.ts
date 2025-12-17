@@ -16,6 +16,23 @@ export type UpdateEvent = {layer: number, index: number, value: any, type: strin
 
 export const Events = new EventTarget();
 
+export async function TestAccess() {
+    let result: boolean = false;
+
+    await fetch(backendUrl + '/testAccess', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${usePersistentStore().jwt}`
+        }
+    })
+    .then(response => {
+        result = response.ok;
+    });
+
+    return result;
+}
+
 export async function Login(login: string, password: string) {
     let res: boolean = false;
     await fetch(backendUrl + '/login', {
@@ -31,6 +48,7 @@ export async function Login(login: string, password: string) {
         if (data.jwt)
         {
             usePersistentStore().jwt = data.jwt;
+            usePersistentStore().user.login = login;
             res = true;
         }
     });

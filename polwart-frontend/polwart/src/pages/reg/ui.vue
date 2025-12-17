@@ -11,6 +11,8 @@ import router from '@/app/router';
 const login = ref('');
 const pass = ref('');
 const passConfirm = ref('');
+
+const authLink = import.meta.env.BASE_URL + 'auth';
 </script>
 
 <template>
@@ -37,7 +39,7 @@ const passConfirm = ref('');
                 Зарегистрироваться
             </Button>
             <Typography tag="h4">ИЛИ</Typography>
-            <a href="/auth"><Typography tag="p">Войти в учетную запись</Typography></a>
+            <a :href="authLink"><Typography tag="p">Войти в учетную запись</Typography></a>
         </StackPanel>
     </Modal>
 </template>

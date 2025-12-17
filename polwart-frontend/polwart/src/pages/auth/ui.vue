@@ -10,6 +10,8 @@ import router from '@/app/router';
 
 const login = ref('');
 const pass = ref('');
+
+const regUrl = import.meta.env.BASE_URL + 'reg';
 </script>
 
 <template>
@@ -31,7 +33,7 @@ const pass = ref('');
                 Войти
             </Button>
             <Typography tag='h4'>ИЛИ</Typography>
-            <a href='/reg'><Typography tag='p'>Создать учетную запись</Typography></a>
+            <a :href="regUrl"><Typography tag='p'>Создать учетную запись</Typography></a>
         </StackPanel>
     </Modal>
 </template>

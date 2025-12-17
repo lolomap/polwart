@@ -3,7 +3,7 @@ import { ref, watch, onMounted } from 'vue';
 import RelationGraph, { type JsonLine, type JsonNode, type RGEventHandler, type RGNode, type RGUserEvent } from 'relation-graph-vue3';
 import { RelationGraphComponent, type RGOptions } from 'relation-graph-vue3';
 import { Typography } from '@/shared/typography';
-import { useSessionStore } from '@/entities/store';
+import { usePersistentStore, useSessionStore } from '@/entities/store';
 import type { Symbol } from '@/entities/Map/Legend/symbol';
 import * as api from '@/features/api';
 import * as map from '@/features/map';
@@ -78,6 +78,9 @@ if (Array.isArray(route.params.mapId))
     mapId = parseInt(route.params.mapId[0]);
 else mapId = parseInt(route.params.mapId);
 
+const session = useSessionStore();
+const storage = usePersistentStore();
+
 //*
 if (mapId > -1)
 {
@@ -85,10 +88,16 @@ if (mapId > -1)
     .then((map: any) => {
         bgUrl.value = api.GetMapImageAddress() + '.' + map.backgroundFormat;
 
-        currentLayer.value = (session.mapData?.layers.length ?? 1) - 1;
+        if (storage.clientState[mapId].layer == undefined || storage.clientState[mapId].layer != -1)
+            currentLayer.value = storage.clientState[mapId].layer;
+        else {
+            currentLayer.value = (session.mapData?.layers.length ?? 1) - 1;
+            storage.clientState[mapId].layer = currentLayer.value;
+        }
         // Load every symbol on layer
         OnLoadMapAllSymbols();
         watch(currentLayer, async (newLayer, oldLayer) => {
+            storage.clientState[mapId].layer = currentLayer.value;
             graphInstance?.clearGraph();
             OnLoadMapAllSymbols();
         });
@@ -98,7 +107,14 @@ if (mapId > -1)
     });
 }
 //*/
-const session = useSessionStore();
+
+storage.lastMap = mapId;
+if (!storage.clientState[mapId])
+    storage.clientState[mapId] = {
+        pos: {x: -1, y: -1},
+        zoom: -1,
+        layer: -1
+    };
 
 onMounted(() => {
     ShowGraph();
@@ -118,10 +134,31 @@ async function ShowGraph() {
     };
 
     graphInstance = graphRef.value?.getInstance();
+    const state = storage.clientState[mapId];
+
     if (graphInstance) {
         await graphInstance.setJsonData(__graph_json_data);
-        await graphInstance.moveToCenter();
-        await graphInstance.zoomToFit();
+
+        let options = graphInstance.options;
+        let changed = false;
+
+        if (state.pos.x == -1)
+            await graphInstance.moveToCenter();
+        else {
+            options.canvasOffset.x = state.pos.x;
+            options.canvasOffset.y = state.pos.y;
+            changed = true;
+        }
+        
+        if (state.zoom == -1)
+            await graphInstance.zoomToFit();
+        else {
+            options.canvasZoom = state.zoom;
+            changed = true;
+        }
+
+        if (changed)
+            graphInstance.setOptions(options);
     }
 }
 
@@ -336,6 +373,15 @@ function GraphDragEndNode(node: RGNode, event: RGUserEvent) {
     symbol.x = node.x;
     symbol.y = node.y;
     RequestUpdateSymbolPos(currentLayer.value, symbol);
+}
+
+function GraphDragEndCanvas(event: RGUserEvent) {
+    storage.clientState[mapId].pos.x = graphInstance?.options.canvasOffset.x ?? -1;
+    storage.clientState[mapId].pos.y = graphInstance?.options.canvasOffset.y ?? -1;
+}
+
+function GraphZoomEnd(event: RGUserEvent) {
+    storage.clientState[mapId].zoom = graphInstance?.options.canvasZoom ?? -1;
 }
 
 function RequestCreateLayer() {
@@ -883,7 +929,9 @@ function CreateSymbol(stype: SymbolType, x: number = 0, y: number = 0, connectio
             :options="graphOptions" 
             @node-click="GraphClickNode"
             @node-drag-end="GraphDragEndNode"
+            @canvas-drag-end="GraphDragEndCanvas"
             @canvas-click="GraphClickCanvas"
+            @zoom-end="GraphZoomEnd"
         >
             <template #node="{node}">
                 <div
